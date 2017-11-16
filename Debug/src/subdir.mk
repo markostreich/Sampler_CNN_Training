@@ -4,17 +4,17 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
-../src/PhotoTaker.cpp \
+../src/Sampler.cpp \
 ../src/fhog.cpp \
 ../src/kcftracker.cpp 
 
 OBJS += \
-./src/PhotoTaker.o \
+./src/Sampler.o \
 ./src/fhog.o \
 ./src/kcftracker.o 
 
 CPP_DEPS += \
-./src/PhotoTaker.d \
+./src/Sampler.d \
 ./src/fhog.d \
 ./src/kcftracker.d 
 

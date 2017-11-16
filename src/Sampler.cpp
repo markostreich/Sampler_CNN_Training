@@ -69,21 +69,6 @@ Size size = Size(height, width);
 // threshold for binary Sobel and Laplace
 int THRESHOLD = 20;
 
-// unused (but needed) trackbar function
-void on_trackbar(int, void*) {
-}
-
-void createTrackbars() {
-	//create window for trackbars
-
-	namedWindow(edgeDetectionParameterWindow, 0);
-	//create memory to store trackbar name on window
-	char TrackbarName[50];
-	sprintf(TrackbarName, "Threshold", THRESHOLD);
-	createTrackbar("Threshold", edgeDetectionParameterWindow, &THRESHOLD, 255,
-			on_trackbar);
-}
-
 /*
  * handler of mouse events in the main window
  */
@@ -152,7 +137,6 @@ int main() {
 	Mat cutFrame;
 	// image counter
 	int image_counter = start_number;
-	createTrackbars();
 	Ptr<KCFTracker> Tracker = new KCFTracker(true, true, true, true);
 
 	// Create Super Folder
