@@ -19,7 +19,7 @@
 #include "kcftracker.hpp"
 
 // source of the video capture: 0 = webcam
-#define CAPTURE_SOURCE 0
+#define CAPTURE_SOURCE CV_CAP_INTELPERC //0
 
 using namespace std;
 using namespace cv;
@@ -37,6 +37,8 @@ const string pathLabel = storage + folder + "/Labels/";
 const string pathLabelFile = pathLabel + "label.txt";
 
 const string classification = "Barbie";
+
+bool YOLOLabels = true;
 
 // Number of the first image
 const int start_number = 0;
@@ -65,9 +67,6 @@ int height = 100;
 // photo width, may be revised in main(), if childphoto = true
 int width = height;
 Size size = Size(height, width);
-
-// threshold for binary Sobel and Laplace
-int THRESHOLD = 20;
 
 /*
  * handler of mouse events in the main window
@@ -131,6 +130,21 @@ void safePoint(Point2d * point, Mat * frame) {
 		point->y = frame->rows - 1;
 }
 
+void convertToYOLOLabels(int wFrame, int hFrame, double xtl, double ytl,
+		double xbr, double ybr, double &xObj, double &yObj, double &wObj,
+		double &hObj) {
+	double dw = 1.0 / (double) wFrame;
+	double dh = 1.0 / (double) hFrame;
+	xObj = (xtl + xbr) / 2.0 - 1.0;
+	yObj = (ytl + ybr) / 2.0 - 1.0;
+	wObj = xbr - xtl;
+	hObj = ybr - ytl;
+	xObj = xObj * dw;
+	yObj = yObj * dh;
+	wObj = wObj * dw;
+	hObj = hObj * dh;
+}
+
 int main() {
 
 	Mat frame;
@@ -164,7 +178,7 @@ int main() {
 	memcpy(com_char, command.c_str(), command.size());
 	if (safeToFiles)
 		system(com_char);
-	char * path_Label= new char[pathLabel.size() + 1];
+	char * path_Label = new char[pathLabel.size() + 1];
 	path_Label[pathLabel.size()] = 0;
 	memcpy(path_Label, pathLabel.c_str(), pathLabel.size());
 
@@ -173,7 +187,7 @@ int main() {
 	// Maus in Fenster einbinden
 	setMouseCallback(windowName, mouseHandle, &frame);
 	// Take Photos
-	VideoCapture capture(CAPTURE_SOURCE);
+	VideoCapture capture(0);
 	if (!capture.isOpened()) {
 		printf("Keine Kamera!\n");
 	} else
@@ -218,19 +232,35 @@ int main() {
 				imwrite(format("%simage%d.jpg", path_RGB, image_counter),
 						frame);
 
-				const string filePath = format("%simage%d.txt", path_Label, image_counter);
+				if (YOLOLabels) {
+					//store labels in distinct files
+					double xObj, yObj, wObj, hObj;
+					convertToYOLOLabels(frame.cols, frame.rows, tl.x, tl.y, br.x, br.y, xObj, yObj, wObj, hObj);
+					const string distFilesPath = format("%simage%d.txt",
+							path_Label, image_counter);
+					char * dist_files_path = new char[distFilesPath.size() + 1];
+					dist_files_path[distFilesPath.size()] = 0;
+					memcpy(dist_files_path, distFilesPath.c_str(),
+							distFilesPath.size());
+					ofstream opendistFile;
+					opendistFile.open(dist_files_path);
+					opendistFile << classification << " " << xObj << " " << yObj
+							<< " " << wObj << " " << hObj << endl;
+					opendistFile.close();
+				}
 
-				char * path_File= new char[filePath.size() + 1];
-				path_File[filePath.size()] = 0;
-				memcpy(path_File, filePath.c_str(), filePath.size());
+				//store labels in one file
+				const string filePath = format("%s../labels.txt", path_Label);
+				char * file_path = new char[filePath.size() + 1];
+				file_path[filePath.size()] = 0;
+				memcpy(file_path, filePath.c_str(), filePath.size());
 				ofstream openFile;
-				openFile.open(path_File);
-				openFile << classification << " " << tl.x << " " << tl.y << " " << br.y - tl.y << " " << br.x - tl.y << endl;
-				openFile.close();
+				openFile.open(file_path);
+				openFile << classification << " " << tl.x << " " << tl.y << " "
+						<< br.y - tl.y << " " << br.x - tl.y << endl;
 				image_counter++;
 
 			}
-
 
 			const string str = boost::lexical_cast<string>(image_counter);
 			putText(frame, str, Point(10, 30), 1, 2, Scalar(0, 0, 255), 2);
