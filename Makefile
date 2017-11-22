@@ -33,6 +33,6 @@ clean:
 	@echo "  $(RM) -r $(BUILDDIR) $(RUNDIR)"; $(RM) -r $(BUILDDIR) $(RUNDIR) || :
 
 test: $(RUNDIR)/$(TARGET) test/run_with_test_video.py
-	@python test/run_with_test_video.py
+	@python test/run_with_test_video.py $(RUNDIR)/$(TARGET)
 
 .PHONY: clean
