@@ -11,7 +11,6 @@ SOURCES := $(shell find $(SRCDIR) -type f -name '*.$(SRCEXT)')
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 
 # Compiler
-INCPATH?=/usr/local/include
 CC := g++
 CFLAGS := -g -Wall -pedantic
 LIB := -lopencv_core -lopencv_imgcodecs -lopencv_video -lopencv_imgproc -lopencv_videoio -lopencv_highgui
