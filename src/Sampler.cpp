@@ -242,6 +242,7 @@ int main() {
 	ofstream openFile;
 	openFile.open(file_path);
 
+
 	while (1) {
 		while (32 != key) {
 			capture.read(frame);
