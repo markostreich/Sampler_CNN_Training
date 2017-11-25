@@ -16,38 +16,40 @@
 #include <boost/lexical_cast.hpp>
 #include <iostream>
 #include <fstream>
-#include "kcftracker.hpp"
-
-// source of the video capture: 0 = webcam
-#define CAPTURE_SOURCE CV_CAP_INTELPERC //0
+#include "MultiTrack.hpp"
+#include "SamplerHelper.hpp"
 
 using namespace std;
 using namespace cv;
+
+bool debug = false;
 
 // name of the main video window
 const string windowName = "Take Photos";
 
 const string storage = "/home/korsak/Dokumente/HM_SS17/SAM/Photos/";
 // folder in path to save the photos
-const string folder = "TEST";
+const string folder = "TEST1";
 // path to the folder where we save the photos
 const string pathSuper = storage + folder + "/";
 const string pathRGB = storage + folder + "/RGB/";
 const string pathLabel = storage + folder + "/Labels/";
 const string pathLabelFile = pathLabel + "label.txt";
 
-const string classification = "auto";
+string classification = "car";
 
 bool YOLOLabels = true;
 
 // Number of the first image
-const int start_number = 1961;
+const int start_number = 0;
 // Number of the last image, currently unused
 const int last_number = 5000;
 // mouse click and release points
 Point2d initialClickPoint, currentSecondPoint;
 // bounding box of photo area
 Rect2d bbox;
+vector<ObjectRect> objects;
+short selectedRect = 1;
 
 // mouse states
 bool mouseIsDragging, mouseMove, drawRect;
@@ -58,16 +60,16 @@ const bool tracking = true;
 const bool childPhoto = false;
 const float vertical = 2;
 //const float vertical = 2.5;
-const bool safeToFiles = true;
+const bool safeToFiles = false;
 
 const string edgeDetectionParameterWindow = "Trackbars";
 
 // photo height
 int height = 100;
-// photo width, may be revised in main(), if childphoto = true
 int width = height;
 Size size = Size(height, width);
 
+Ptr<MultiTrack> tracker;
 /*
  * handler of mouse events in the main window
  */
@@ -97,19 +99,29 @@ void mouseHandle(int event, int x, int y, int flags, void* param) {
 						initialClickPoint.y + y_dist);
 		}
 		currentSecondPoint = Point(x, y);
-		bbox = Rect2d(initialClickPoint, currentSecondPoint);
+		objects.at(selectedRect-1).rect = Rect2d(initialClickPoint, currentSecondPoint);
+		objects.at(selectedRect-1).active = true;
+		objects.at(selectedRect-1).selected = true;
+		if (debug){
+			Rect2d rect = objects.at(selectedRect-1).rect;
+			cout << format("%f %f %f %f", rect.tl().x,rect.tl().y,rect.br().x,rect.br().y) << endl;
+		}
+		// bbox = Rect2d(initialClickPoint, currentSecondPoint);
 		drawRect = true;
 	}
 	// user has released left button
 	if (event == CV_EVENT_LBUTTONUP && mouseIsDragging == true) {
-		bbox = Rect2d(initialClickPoint, currentSecondPoint);
+		// bbox = Rect2d(initialClickPoint, currentSecondPoint);
+		objects.at(selectedRect-1).rect = Rect2d(initialClickPoint, currentSecondPoint);
 
 		mouseIsDragging = false;
 		if (initialClickPoint.x != currentSecondPoint.x
 				&& initialClickPoint.y != currentSecondPoint.y)
 			drawRect = true;
-		else
+		else {
 			drawRect = false;
+			objects.at(selectedRect-1).active = false;
+		}
 	}
 
 	if (event == CV_EVENT_RBUTTONDOWN) {
@@ -145,13 +157,58 @@ void convertToYOLOLabels(int wFrame, int hFrame, double xtl, double ytl,
 	hObj = hObj * dh;
 }
 
+CvScalar random_color(CvRNG* rng)
+{
+int color = cvRandInt(rng);
+return CV_RGB(color&255, (color>>8)&255, (color>>16)&255);
+}
+
+void init_ObjectRects(){
+	CvRNG rng;
+	for (int i = 1; i <= 9; i++){
+		ObjectRect newObjRect;
+		newObjRect.number = i;
+		newObjRect.active = false;
+		newObjRect.selected = false;
+		newObjRect.color = random_color(&rng);
+		objects.push_back(newObjRect);
+	}
+}
+void draw_ObjectRects(Mat& frame) {
+	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it){
+		if ((*it).active){
+			if ((*it).selected){
+				rectangle(frame, (*it).rect, (*it).color, 2, 1);
+			} else {
+				rectangle(frame, (*it).rect, (*it).color, 1, 1);
+			}
+		}
+	}
+}
+
+void change_SelectedObjectRect(int key){
+	objects.at(selectedRect-1).selected = false;
+	selectedRect = key - 48;
+		objects.at(selectedRect-1).selected = true;
+}
+
+void init_tracker(Mat& frame) {
+	tracker = new MultiTrack();
+	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it){
+		if ((*it).active){
+			tracker->add(frame, (*it).rect);
+		}
+	}
+}
+
 int main() {
 
 	Mat frame;
 	Mat cutFrame;
 	// image counter
 	int image_counter = start_number;
-	Ptr<KCFTracker> Tracker = new KCFTracker(true, true, true, true);
+
+	init_ObjectRects();
 
 	// Create Super Folder
 	string command = "mkdir " + pathSuper;
@@ -209,7 +266,9 @@ int main() {
 		key = 0;
 		while (32 != key) {
 			capture.read(frame);
-			rectangle(frame, bbox, Scalar(255, 0, 0), 2, 1);
+			// rectangle(frame, bbox, Scalar(255, 0, 0), 2, 1);
+			// rectangle(frame, objects.at(selectedRect-1).rect, objects.at(selectedRect-1).color, 2, 1);
+			draw_ObjectRects(frame);
 			Point2d tl = bbox.tl();
 			Point2d br = bbox.br();
 			safePoint(&tl, &frame);
@@ -222,57 +281,66 @@ int main() {
 			if (key == 'q') {
 				return 0;
 				openFile.close();
+			} else if (key >= 48 && key <= 57) {
+				change_SelectedObjectRect(key);
 			}
 		}
 		if (tracking) {
-			Tracker->init(bbox, frame);
+			init_tracker(frame);
 		}
 
 		key = 0;
 		while (32 != waitKey(20)) {
 			capture.read(frame);
 			if (tracking) {
-				bbox = Tracker->update(frame);
-			}
-			Point2d tl = bbox.tl();
-			Point2d br = bbox.br();
-			safePoint(&tl, &frame);
-			safePoint(&br, &frame);
-			Rect2d safeRect(tl, br);
-			if (safeToFiles) {
-				imwrite(format("%simage%d.jpg", path_RGB, image_counter),
-						frame);
+				tracker->update(frame);
 
-				if (YOLOLabels) {
-					//store labels in distinct files
-					double xObj, yObj, wObj, hObj;
-					convertToYOLOLabels(frame.cols, frame.rows, tl.x, tl.y, br.x, br.y, xObj, yObj, wObj, hObj);
-					const string distFilesPath = format("%simage%d.txt",
-							path_Label, image_counter);
-					char * dist_files_path = new char[distFilesPath.size() + 1];
-					dist_files_path[distFilesPath.size()] = 0;
-					memcpy(dist_files_path, distFilesPath.c_str(),
-							distFilesPath.size());
-					ofstream opendistFile;
-					opendistFile.open(dist_files_path);
-					opendistFile << classification << " " << xObj << " " << yObj
-							<< " " << wObj << " " << hObj << endl;
-					opendistFile.close();
+				for (int i = 0; i < 9; i++){
+					if (objects.at(i).active){
+						bbox=tracker->objects[i];
+						Point2d tl = bbox.tl();
+						Point2d br = bbox.br();
+						safePoint(&tl, &frame);
+						safePoint(&br, &frame);
+						Rect2d safeRect(tl, br);
+						objects.at(i).rect = safeRect;
+						if (safeToFiles) {
+							imwrite(format("%simage%d.jpg", path_RGB, image_counter),
+									frame);
+
+							if (YOLOLabels) {
+								//store labels in distinct files
+								double xObj, yObj, wObj, hObj;
+								convertToYOLOLabels(frame.cols, frame.rows, tl.x, tl.y, br.x, br.y, xObj, yObj, wObj, hObj);
+								const string distFilesPath = format("%simage%d.txt",
+										path_Label, image_counter);
+								char * dist_files_path = new char[distFilesPath.size() + 1];
+								dist_files_path[distFilesPath.size()] = 0;
+								memcpy(dist_files_path, distFilesPath.c_str(),
+										distFilesPath.size());
+								ofstream opendistFile;
+								opendistFile.open(dist_files_path);
+								opendistFile << classification << " " << xObj << " " << yObj
+										<< " " << wObj << " " << hObj << endl;
+								opendistFile.close();
+							}
+
+
+							openFile << format("image%d.jpg", image_counter) << " " << classification << " " << tl.x << " " << tl.y << " "
+									<< br.y - tl.y << " " << br.x - tl.y << endl;
+
+						}
+						if (drawRect) {
+								rectangle(frame, objects.at(i).rect, objects.at(i).color, 1, 1);
+						}
+					}
 				}
-
-
-				openFile << format("image%d.jpg", image_counter) << " " << classification << " " << tl.x << " " << tl.y << " "
-						<< br.y - tl.y << " " << br.x - tl.y << endl;
-				image_counter++;
-
 			}
 
 			const string str = boost::lexical_cast<string>(image_counter);
 			putText(frame, str, Point(10, 30), 1, 2, Scalar(0, 0, 255), 2);
-			if (drawRect) {
-				rectangle(frame, bbox, Scalar(255, 0, 0), 2, 1);
-			}
 			imshow(windowName, frame);
+			image_counter++;
 		}
 	}
 	return 0;

@@ -5,7 +5,7 @@ RUNDIR := bin
 TESTDIR := test
 
 # Sources
-TARGET := runner
+TARGET := sam_sampler
 SRCEXT := cpp
 SOURCES := $(shell find $(SRCDIR) -type f -name '*.$(SRCEXT)')
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
