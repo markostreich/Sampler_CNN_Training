@@ -25,7 +25,7 @@ using namespace cv;
 bool debug = false;
 
 // name of the main video window
-const string windowName = "Take Photos";
+const string windowName = "SAM Sampler";
 
 const string storage = "/home/korsak/Dokumente/HM_SS17/SAM/Photos/";
 // folder in path to save the photos
@@ -56,18 +56,7 @@ bool mouseIsDragging, mouseMove, drawRect;
 
 // track labeled object
 const bool tracking = true;
-// rectangle 1:vertical or 1:1
-const bool childPhoto = false;
-const float vertical = 2;
-//const float vertical = 2.5;
 const bool safeToFiles = false;
-
-const string edgeDetectionParameterWindow = "Trackbars";
-
-// photo height
-int height = 100;
-int width = height;
-Size size = Size(height, width);
 
 Ptr<MultiTrack> tracker;
 /*
@@ -86,18 +75,12 @@ void mouseHandle(int event, int x, int y, int flags, void* param) {
 	if (event == CV_EVENT_MOUSEMOVE && mouseIsDragging == true) {
 		int x_dist = x - initialClickPoint.x;
 		int y_dist = y - initialClickPoint.y;
-
-		if (childPhoto) { // rectangle 1:vertical
+		if (x_dist > y_dist)
 			currentSecondPoint = Point(initialClickPoint.x + x_dist,
-					initialClickPoint.y + vertical * x_dist);
-		} else { // square
-			if (x_dist > y_dist)
-				currentSecondPoint = Point(initialClickPoint.x + x_dist,
-						initialClickPoint.y + x_dist);
-			else
-				currentSecondPoint = Point(initialClickPoint.x + y_dist,
-						initialClickPoint.y + y_dist);
-		}
+					initialClickPoint.y + x_dist);
+		else
+			currentSecondPoint = Point(initialClickPoint.x + y_dist,
+					initialClickPoint.y + y_dist);
 		currentSecondPoint = Point(x, y);
 		objects.at(selectedRect-1).rect = Rect2d(initialClickPoint, currentSecondPoint);
 		objects.at(selectedRect-1).active = true;
@@ -249,10 +232,7 @@ int main() {
 		printf("Keine Kamera!\n");
 	} else
 		printf("Kamera vorhanden.\n");
-	int key;
-	if (childPhoto) {
-		size = Size(height, width * vertical);
-	}
+	int key = 0;
 
 	//store labels in one file
 	const string filePath = format("%s../labels.txt", path_Label);
@@ -263,7 +243,6 @@ int main() {
 	openFile.open(file_path);
 
 	while (1) {
-		key = 0;
 		while (32 != key) {
 			capture.read(frame);
 			// rectangle(frame, bbox, Scalar(255, 0, 0), 2, 1);
