@@ -29,29 +29,21 @@ const string windowName = "Take Photos";
 
 const string storage = "/home/korsak/Dokumente/HM_SS17/SAM/Photos/";
 // folder in path to save the photos
-<<<<<<< HEAD
-const string folder = "car241117";
-=======
 const string folder = "TEST1";
->>>>>>> makefile_project
 // path to the folder where we save the photos
 const string pathSuper = storage + folder + "/";
 const string pathRGB = storage + folder + "/RGB/";
 const string pathLabel = storage + folder + "/Labels/";
 const string pathLabelFile = pathLabel + "label.txt";
 
-<<<<<<< HEAD
-const string classification = "car_left";
-=======
 string classification = "car";
->>>>>>> makefile_project
 
 bool YOLOLabels = true;
 
 // Number of the first image
 const int start_number = 0;
 // Number of the last image, currently unused
-const int last_number = 50000;
+const int last_number = 5000;
 // mouse click and release points
 Point2d initialClickPoint, currentSecondPoint;
 // bounding box of photo area
@@ -165,20 +157,6 @@ void convertToYOLOLabels(int wFrame, int hFrame, double xtl, double ytl,
 	hObj = hObj * dh;
 }
 
-<<<<<<< HEAD
-string currentDateToString() {
-	time_t rawtime;
-	struct tm * timeinfo;
-	char buffer[80];
-
-	time(&rawtime);
-	timeinfo = localtime(&rawtime);
-
-	strftime(buffer, sizeof(buffer), "%d-%m-%Y_%I-%M-%S", timeinfo);
-	std::string str(buffer);
-
-	return str;
-=======
 CvScalar random_color(CvRNG* rng)
 {
 int color = cvRandInt(rng);
@@ -221,7 +199,6 @@ void init_tracker(Mat& frame) {
 			tracker->add(frame, (*it).rect);
 		}
 	}
->>>>>>> makefile_project
 }
 
 int main() {
@@ -267,10 +244,9 @@ int main() {
 	// Maus in Fenster einbinden
 	setMouseCallback(windowName, mouseHandle, &frame);
 	// Take Photos
-	VideoCapture capture(3);
+	VideoCapture capture(0);
 	if (!capture.isOpened()) {
 		printf("Keine Kamera!\n");
-		return 1;
 	} else
 		printf("Kamera vorhanden.\n");
 	int key;
@@ -317,44 +293,6 @@ int main() {
 		while (32 != waitKey(20)) {
 			capture.read(frame);
 			if (tracking) {
-<<<<<<< HEAD
-				bbox = Tracker->update(frame);
-			}
-			Point2d tl = bbox.tl();
-			Point2d br = bbox.br();
-			safePoint(&tl, &frame);
-			safePoint(&br, &frame);
-			Rect2d safeRect(tl, br);
-			if (safeToFiles) {
-				imwrite(format("%simage%d.JPEG", path_RGB, image_counter),
-						frame);
-
-				if (YOLOLabels) {
-					//store labels in distinct files
-					double xObj, yObj, wObj, hObj;
-					convertToYOLOLabels(frame.cols, frame.rows, tl.x, tl.y,
-							br.x, br.y, xObj, yObj, wObj, hObj);
-					const string distFilesPath = format("%simage%d.txt",
-							path_Label, image_counter);
-					char * dist_files_path = new char[distFilesPath.size() + 1];
-					dist_files_path[distFilesPath.size()] = 0;
-					memcpy(dist_files_path, distFilesPath.c_str(),
-							distFilesPath.size());
-					ofstream opendistFile;
-					opendistFile.open(dist_files_path);
-					opendistFile << classification << " " << xObj << " " << yObj
-							<< " " << wObj << " " << hObj << endl;
-					opendistFile.close();
-				}
-
-				openFile << format("image%d.JPEG", image_counter) << " "
-						<< classification << " " << (int)((br.x - tl.x) / 2) << " "
-						<< (int)((br.y - tl.y) / 2) << " " << br.y - tl.y << " "
-						<< br.x - tl.y << " " << frame.cols << " " << frame.rows
-						<< endl;
-				image_counter++;
-
-=======
 				tracker->update(frame);
 
 				for (int i = 0; i < 9; i++){
@@ -397,7 +335,6 @@ int main() {
 						}
 					}
 				}
->>>>>>> makefile_project
 			}
 
 			const string str = boost::lexical_cast<string>(image_counter);
