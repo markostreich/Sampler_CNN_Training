@@ -13,4 +13,12 @@ struct ObjectRect {
   std::string direction;
 };
 
-#endif
+enum SamplerModes {
+  RECORD_ONLY,
+  LABEL_ONLY,
+  LABEL_VIDEO,
+  RECORD_AND_LABEL,
+  FPS_TEST
+};
+
+#endif //_SAMPLER_HELPER_HPP_

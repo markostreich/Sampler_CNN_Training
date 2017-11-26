@@ -28,16 +28,10 @@ bool debug = false;
 // name of the main video window
 const string windowName = "SAM Sampler";
 
-const string storage = "";//"/home/korsak/Dokumente/HM_SS17/SAM/Photos/";
-// folder in path to save the photos
-const string folder = "TEST";
-// path to the folder where we save the photos
-const string pathSuper = storage + folder + "/";
-const string pathRGB = storage + folder + "/RGB/";
-const string pathLabel = storage + folder + "/YOLO_Labels/";
-const string pathLabelFile = pathLabel + "label.txt";
+string destination;
 
-string classification = "car";
+string source = "";
+int device = 0;
 
 bool YOLOLabels = true;
 
@@ -56,6 +50,8 @@ bool mouseIsDragging, mouseMove, drawRect;
 const bool safeToFiles = true;
 
 Ptr<MultiTrack> tracker;
+
+int mode;
 
 bool classSetError = false;
 /*
@@ -158,6 +154,11 @@ void init_ObjectRects(){
 		objects.push_back(newObjRect);
 	}
 }
+
+/**
+ * Draws rectangles of tagged objects into a given frame.
+ *
+ */
 void draw_ObjectRects(Mat& frame) {
 	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it){
 		if ((*it).active){
@@ -176,6 +177,10 @@ void draw_ObjectRects(Mat& frame) {
 	}
 }
 
+/**
+ * Checks if all tagged objects are classified.
+ * Labeling will not start if it returns false.
+ */
 bool all_classes_set(){
 	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it){
 		if ((*it).active){
@@ -185,6 +190,7 @@ bool all_classes_set(){
 			}
 		}
 	}
+	classSetError = false;
 	return true;
 }
 
@@ -213,6 +219,9 @@ void key_handle(int key){
 	}
 }
 
+/**
+ * Hands over rectangels of tagged objects to tracker.
+ */
 void init_tracker(Mat& frame) {
 	tracker = new MultiTrack();
 	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it){
@@ -222,6 +231,9 @@ void init_tracker(Mat& frame) {
 	}
 }
 
+/**
+ * Converts current date and time to string.
+ */
 string currentDateToString() {
 	time_t rawtime;
 	struct tm * timeinfo;
@@ -236,15 +248,77 @@ string currentDateToString() {
 	return str;
 }
 
-int main() {
+/**
+ * Help message in console.
+ */
+void showUsage(string name) {
+	cerr << "\n"
+	"Usage:" << "\n\n" <<
+	"sam_sampler" << "\n" <<
+	"\t-m (or --mode) <recordonly|labelonly|labelvideo|recordandlabel>\n" <<
+	"\t-s (or --source) <source: device number or video file>\n" <<
+	"\t-d (or --destination) <destination folder>" << "\n" << "\n" <<
+	"Default:" << "\n\n" <<
+	"sam_sampler" << " -m labelonly -s 0 -d Storage\n\n";
+}
 
-	Mat frame;
-	Mat cutFrame;
-	// image counter
-	int image_counter = start_number;
+/**
+ * Parses command line arguments.
+ */
+int parseArgs(int argc, char* argv[]){
+	//check correct argc
+	if (argc % 2 == 0 || argc > 7){
+		showUsage(argv[0]);
+		return 1;
+	}
 
-	init_ObjectRects();
+	// DEFAULT setting
+	mode = LABEL_ONLY;
+	source = "0";
+	destination = "Storage";
 
+	//Loop over args
+	for (int i = 1; i < argc; ++i) {
+		if (string(argv[i]) == "-m" || string(argv[i]) == "--mode"){
+			if (string(argv[i + 1]) == "recordonly") {
+				mode = RECORD_ONLY;
+			} else if (string(argv[i + 1]) == "labelonly") {
+				mode = LABEL_ONLY;
+			}else if (string(argv[i + 1]) == "labelvideo") {
+				mode = LABEL_VIDEO;
+			} else if (string(argv[i + 1]) == "recordandlabel") {
+				mode = RECORD_AND_LABEL;
+			} else if (string(argv[i + 1]) == "fpstest") {
+				mode = FPS_TEST;
+			} else {
+				showUsage(argv[0]);
+				return 1;
+			}
+		} else if (string(argv[i]) == "-s" || string(argv[i]) == "--source") {
+			if (i + 1 < argc) {
+				source = string(argv[i + 1]);
+			} else {
+				showUsage(argv[0]);
+				return 1;
+			}
+		} else if (string(argv[i]) == "-d" || string(argv[i]) == "--destination") {
+			if (i + 1 < argc) {
+				destination = string(argv[i + 1]);
+			} else {
+				showUsage(argv[0]);
+				return 1;
+			}
+		}
+	}
+
+	// get device number, if mode != LABEL_VIDEO
+	if (mode != 2) {
+		device = atoi(source.c_str());
+	}
+	return 0;
+}
+
+void createFolder(const string pathSuper, const string pathRGB, const string pathLabel) {
 	// Create Super Folder
 	string command = "mkdir " + pathSuper + " > /dev/null 2>&1";
 	char * com_char = new char[command.size() + 1];
@@ -253,23 +327,145 @@ int main() {
 	if (safeToFiles)
 		system(com_char);
 
-	// Create Folder
+	// Create Image Folder
 	command = "mkdir " + pathRGB + " > /dev/null 2>&1";
 	com_char = new char[command.size() + 1];
 	com_char[command.size()] = 0;
 	memcpy(com_char, command.c_str(), command.size());
 	if (safeToFiles)
 		system(com_char);
-	char * path_RGB = new char[pathRGB.size() + 1];
-	path_RGB[pathRGB.size()] = 0;
-	memcpy(path_RGB, pathRGB.c_str(), pathRGB.size());
 
+	// create YOLO Label Folder
 	command = "mkdir " + pathLabel + " > /dev/null 2>&1";
 	com_char = new char[command.size() + 1];
 	com_char[command.size()] = 0;
 	memcpy(com_char, command.c_str(), command.size());
 	if (safeToFiles)
 		system(com_char);
+}
+
+string recordVideo(VideoCapture& capture, string pathFolder){
+	Mat frame;
+	namedWindow(windowName);
+
+
+	Size size = Size((int) capture.get(CV_CAP_PROP_FRAME_WIDTH),    // Acquire input size
+                (int) capture.get(CV_CAP_PROP_FRAME_HEIGHT));
+	const string pathVideo = pathFolder + "SAM_VIDEO" + currentDateToString() + ".avi";
+	cout << pathVideo << endl;
+	// loop before saving the video
+	int key = 0;
+	while (key != 32) {
+		capture.read(frame);
+		string text = "Press SPACE to start recording.";
+		putText(frame, text, Point(10, 30), 1, 2, Scalar(0, 255, 255), 2);
+		imshow(windowName, frame);
+		key = waitKey(10);
+	}
+
+	VideoWriter output(pathVideo, CV_FOURCC('M', 'P', '4', '2'),10, size, true);
+	/*
+	CV_FOURCC('P','I','M','1')    = MPEG-1 codec
+	CV_FOURCC('M','J','P','G')    = motion-jpeg codec (does not work well)
+	CV_FOURCC('M', 'P', '4', '2') = MPEG-4.2 codec
+	CV_FOURCC('D', 'I', 'V', '3') = MPEG-4.3 codec
+	CV_FOURCC('D', 'I', 'V', 'X') = MPEG-4 codec
+	CV_FOURCC('U', '2', '6', '3') = H263 codec
+	CV_FOURCC('I', '2', '6', '3') = H263I codec
+	CV_FOURCC('F', 'L', 'V', '1') = FLV1 codec
+	*/
+
+	// loop while saving the video
+	key = 0;
+	while (key != 32) {
+		capture.read(frame);
+		output.write(frame);
+		string text = "REC";
+		putText(frame, text, Point(10, 30), 1, 2, Scalar(0, 0, 255), 2);
+		imshow(windowName, frame);
+		key = waitKey(30);
+	}
+	return pathVideo;
+}
+
+void calcFPS() {
+	// Start default camera
+    VideoCapture video(0);
+
+    // With webcam get(CV_CAP_PROP_FPS) does not work.
+    // Let's see for ourselves.
+
+    double fps = video.get(CV_CAP_PROP_FPS);
+    // If you do not care about backward compatibility
+    // You can use the following instead for OpenCV 3
+    // double fps = video.get(CAP_PROP_FPS);
+    cout << "Frames per second using video.get(CV_CAP_PROP_FPS) : " << fps << endl;
+
+
+    // Number of frames to capture
+    int num_frames = 120;
+
+    // Start and end times
+    time_t start, end;
+
+    // Variable for storing video frames
+    Mat frame;
+
+    cout << "Capturing " << num_frames << " frames" << endl ;
+
+    // Start time
+    time(&start);
+
+    // Grab a few frames
+    for(int i = 0; i < num_frames; ++i)
+    {
+        video >> frame;
+    }
+
+    // End Time
+    time(&end);
+
+    // Time elapsed
+    double seconds = difftime (end, start);
+    cout << "Time taken : " << seconds << " seconds" << endl;
+
+    // Calculate frames per second
+    fps  = num_frames / seconds;
+    cout << "Estimated frames per second : " << fps << endl;
+
+    // Release video
+    video.release();
+}
+
+int main(int argc, char* argv[]) {
+
+	if (parseArgs(argc, argv) == 1) {
+		return 1;
+	}
+
+	if (mode == FPS_TEST) {
+		calcFPS();
+		return 0;
+	}
+
+	// path to the folder where we save the photos
+	const string pathSuper = destination + "/";
+	const string pathRGB = destination + "/RGB/";
+	const string pathLabel = destination + "/YOLO_Labels/";
+
+	Mat frame;
+	Mat blankFrame;
+	// image counter
+	int image_counter = start_number;
+
+	init_ObjectRects();
+
+	createFolder(pathSuper, pathRGB, pathLabel);
+
+	char * path_RGB = new char[pathRGB.size() + 1];
+	path_RGB[pathRGB.size()] = 0;
+	memcpy(path_RGB, pathRGB.c_str(), pathRGB.size());
+
 	char * path_Label = new char[pathLabel.size() + 1];
 	path_Label[pathLabel.size()] = 0;
 	memcpy(path_Label, pathLabel.c_str(), pathLabel.size());
@@ -280,52 +476,76 @@ int main() {
 	// Maus in Fenster einbinden
 	setMouseCallback(windowName, mouseHandle, &frame);
 
-	// Take Photos
-	VideoCapture capture(0);
+	VideoCapture capture;
 
-	if (!capture.isOpened()) {
-		printf("Keine Kamera!\n");
+	// Init VideoCapture
+	if (mode != LABEL_VIDEO){
+		capture = VideoCapture(device);
 	} else {
-		printf("Kamera vorhanden.\n");
+		capture = VideoCapture(source);
+	}
+	if (!capture.isOpened()) {
+		printf("No video source!\n");
+	} else {
+		printf("Found video source.\n");
 	}
 
-	int key = 0;
+	if (mode == RECORD_ONLY || mode == RECORD_AND_LABEL){
+		source = recordVideo(capture, pathSuper);
+		capture.release();
+		if (mode == RECORD_ONLY) {
+			return 0;
+		}
+		capture = VideoCapture(source);
+	}
 
 	//store labels in one file
-	const string filePath = format("%s../labels.txt", path_Label);
-	char * file_path = new char[filePath.size() + 1];
-	file_path[filePath.size()] = 0;
-	memcpy(file_path, filePath.c_str(), filePath.size());
+	const string pathLabelFile = destination + "/labels.txt";
+	char * file_path = new char[pathLabelFile.size() + 1];
+	file_path[pathLabelFile.size()] = 0;
+	memcpy(file_path, pathLabelFile.c_str(), pathLabelFile.size());
 	ofstream openFile;
 	openFile.open(file_path);
 
 	bool startTracking = false;
-
+	int key = 0;
+	bool doCapturing = true;
+	int countFrames = 0;
 	while (1) {
 		while (!startTracking) {
-			capture.read(frame);
+			if (doCapturing){
+				capture.read(blankFrame);
+			}
+			frame=blankFrame.clone();
 			draw_ObjectRects(frame);
 			const string str = boost::lexical_cast<string>(image_counter);
 			putText(frame, str, Point(10, 30), 1, 2, Scalar(0, 255, 255), 2);
 			imshow(windowName, frame);
-			key = waitKey(10);
+			if (countFrames < 3) countFrames++;
+			if ((mode == LABEL_VIDEO && countFrames == 3) || (mode == RECORD_AND_LABEL && countFrames == 3)) {
+				doCapturing = false;
+			}
+			key = waitKey(1);
 			if (key == 32) {
 				if (all_classes_set()) {
 					startTracking = true;
-					classSetError = false;
 				}
 			} else if (key == 'q') {
 				openFile.close();
-					return 0;
+				capture.release();
+				return 0;
 			} else {
 				key_handle(key);
 			}
 		}
 
-		init_tracker(frame);
+		init_tracker(blankFrame);
 		key = -1;
-		while (32 != waitKey(20)) {
-			capture.read(frame);
+		while (32 != key) {
+			if (!capture.read(frame)) {
+				cout << "Finished Labeling.\n";
+				return 0;
+			}
 			tracker->update(frame);
 
 			// save image file
@@ -384,6 +604,9 @@ int main() {
 			putText(frame, counterStr, Point(10, 30), 1, 2, Scalar(0, 255, 255), 2);
 			imshow(windowName, frame);
 			image_counter++;
+			if (mode == LABEL_VIDEO || mode == RECORD_AND_LABEL)
+				key = waitKey(1);
+			else key = waitKey(20);
 		}
 		startTracking = false;
 	}
