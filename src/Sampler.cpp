@@ -318,7 +318,7 @@ int parseArgs(int argc, char* argv[]){
 	return 0;
 }
 
-void createFolder(const string pathSuper, const string pathRGB, const string pathLabel) {
+void createSuperFolder(const string pathSuper) {
 	// Create Super Folder
 	string command = "mkdir " + pathSuper + " > /dev/null 2>&1";
 	char * com_char = new char[command.size() + 1];
@@ -326,17 +326,20 @@ void createFolder(const string pathSuper, const string pathRGB, const string pat
 	memcpy(com_char, command.c_str(), command.size());
 	if (safeToFiles)
 		system(com_char);
+}
+
+void createSubFolder(const string pathRGB, const string pathYOLOLabel) {
 
 	// Create Image Folder
-	command = "mkdir " + pathRGB + " > /dev/null 2>&1";
-	com_char = new char[command.size() + 1];
+	string command = "mkdir " + pathRGB + " > /dev/null 2>&1";
+	char * com_char = new char[command.size() + 1];
 	com_char[command.size()] = 0;
 	memcpy(com_char, command.c_str(), command.size());
 	if (safeToFiles)
 		system(com_char);
 
 	// create YOLO Label Folder
-	command = "mkdir " + pathLabel + " > /dev/null 2>&1";
+	command = "mkdir " + pathYOLOLabel+ " > /dev/null 2>&1";
 	com_char = new char[command.size() + 1];
 	com_char[command.size()] = 0;
 	memcpy(com_char, command.c_str(), command.size());
@@ -346,7 +349,7 @@ void createFolder(const string pathSuper, const string pathRGB, const string pat
 
 string recordVideo(VideoCapture& capture, string pathFolder){
 	Mat frame;
-	namedWindow(windowName);
+	// namedWindow(windowName);
 
 
 	Size size = Size((int) capture.get(CV_CAP_PROP_FRAME_WIDTH),    // Acquire input size
@@ -451,7 +454,7 @@ int main(int argc, char* argv[]) {
 	// path to the folder where we save the photos
 	const string pathSuper = destination + "/";
 	const string pathRGB = destination + "/RGB/";
-	const string pathLabel = destination + "/YOLO_Labels/";
+	const string pathYOLOLabel= destination + "/YOLO_Labels/";
 
 	Mat frame;
 	Mat blankFrame;
@@ -460,20 +463,20 @@ int main(int argc, char* argv[]) {
 
 	init_ObjectRects();
 
-	createFolder(pathSuper, pathRGB, pathLabel);
+	createSuperFolder(pathSuper);
 
 	char * path_RGB = new char[pathRGB.size() + 1];
 	path_RGB[pathRGB.size()] = 0;
 	memcpy(path_RGB, pathRGB.c_str(), pathRGB.size());
 
-	char * path_Label = new char[pathLabel.size() + 1];
-	path_Label[pathLabel.size()] = 0;
-	memcpy(path_Label, pathLabel.c_str(), pathLabel.size());
+	char * path_Label = new char[pathYOLOLabel.size() + 1];
+	path_Label[pathYOLOLabel.size()] = 0;
+	memcpy(path_Label, pathYOLOLabel.c_str(), pathYOLOLabel.size());
 
-	// Fenster mit Kamerabild
+	// init window
 	namedWindow(windowName);
 
-	// Maus in Fenster einbinden
+	// init mouse mouseHandler
 	setMouseCallback(windowName, mouseHandle, &frame);
 
 	VideoCapture capture;
@@ -486,6 +489,7 @@ int main(int argc, char* argv[]) {
 	}
 	if (!capture.isOpened()) {
 		printf("No video source!\n");
+		return 1;
 	} else {
 		printf("Found video source.\n");
 	}
@@ -498,6 +502,8 @@ int main(int argc, char* argv[]) {
 		}
 		capture = VideoCapture(source);
 	}
+
+		createSubFolder(pathRGB, pathYOLOLabel);
 
 	//store labels in one file
 	const string pathLabelFile = destination + "/labels.txt";
@@ -549,15 +555,16 @@ int main(int argc, char* argv[]) {
 			tracker->update(frame);
 
 			// save image file
-			string imageFileName = format("%simage-%d-", path_RGB, image_counter) + currentDateToString() + ".JPEG";
+			string currentDate = currentDateToString();
+			string imageFileName = format("%simage-%d-", path_RGB, image_counter) + currentDate + ".JPEG";
 			imwrite(imageFileName, frame);
 
 			ofstream opendistFile;
 			if (safeToFiles){
 				if (YOLOLabels) {
 					//store labels in distinct files
-					const string distFilesPath = format("%simage%d.txt",
-							path_Label, image_counter);
+					const string distFilesPath = format("%simage-%d-",
+							path_Label, image_counter) + currentDate + ".txt";
 					char * dist_files_path = new char[distFilesPath.size() + 1];
 					dist_files_path[distFilesPath.size()] = 0;
 					memcpy(dist_files_path, distFilesPath.c_str(),
@@ -580,10 +587,11 @@ int main(int argc, char* argv[]) {
 
 				if (safeToFiles) {
 					// <filename> <classname> <middle.x> <middle.y> <object width> <object height> <image width> <image height>
-					openFile << format("image%d.JPEG", image_counter) << " "
+					string imageFileName = format("image-%d-", image_counter) + currentDate + ".JPEG";
+					openFile << imageFileName << " "
 					<< objects.at(j).classification << objects.at(j).direction << " " << (int)((br.x - tl.x) / 2) << " "
-					<< (int)((br.y - tl.y) / 2) << " " << br.y - tl.y << " "
-					<< br.x - tl.y << " " << frame.cols << " " << frame.rows
+					<< (int)((br.y - tl.y) / 2) << " " << br.x - tl.x << " "
+					<< br.y - tl.y << " " << frame.cols << " " << frame.rows
 					<< endl;
 
 					if (YOLOLabels) {
