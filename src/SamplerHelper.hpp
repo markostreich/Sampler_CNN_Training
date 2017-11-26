@@ -10,6 +10,7 @@ struct ObjectRect {
   cv::Scalar color;
   cv::Rect2d rect;
   std::string classification;
+  std::string direction;
 };
 
 #endif
