@@ -205,8 +205,8 @@ void key_handle(int key){
 		objects.at(selectedRect-1).selected = true;
 	} else if (key == 'c') {
 		objects.at(selectedRect-1).classification = "car";
-	} else if (key == 'b') {
-		objects.at(selectedRect-1).classification = "barbie";
+	} else if (key == 'p') {
+		objects.at(selectedRect-1).classification = "person";
 	} else if (key == 'h') {
 		objects.at(selectedRect-1).classification = "child";
 	} else if (key == 82) {
@@ -281,7 +281,7 @@ void searchVideoCaptures() {
  */
 int parseArgs(int argc, char* argv[]){
 	//check correct argc
-	if (argc % 2 == 0 || argc > 7){
+	if (argc % 2 == 0 || argc > 9){
 		showUsage(argv[0]);
 		return 1;
 	}
@@ -511,6 +511,8 @@ int main(int argc, char* argv[]) {
 
 	VideoCapture capture;
 	capture.set(CV_CAP_PROP_FPS, fps);
+	capture.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
+	capture.set(CV_CAP_PROP_FRAME_WIDTH, 640);
 
 	// Init VideoCapture
 	if (mode != LABEL_VIDEO){
@@ -542,7 +544,7 @@ int main(int argc, char* argv[]) {
 	file_path[pathLabelFile.size()] = 0;
 	memcpy(file_path, pathLabelFile.c_str(), pathLabelFile.size());
 	ofstream openFile;
-	openFile.open(file_path);
+	openFile.open(file_path, ios_base::app);
 
 	bool startTracking = false;
 	int key = 0;
