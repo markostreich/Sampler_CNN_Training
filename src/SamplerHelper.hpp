@@ -18,7 +18,8 @@ enum SamplerModes {
   LABEL_ONLY,
   LABEL_VIDEO,
   RECORD_AND_LABEL,
-  FPS_TEST
+  FPS_TEST,
+  LIST_DEVICES
 };
 
 #endif //_SAMPLER_HELPER_HPP_

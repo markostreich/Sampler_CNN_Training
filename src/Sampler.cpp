@@ -52,6 +52,7 @@ const bool safeToFiles = true;
 Ptr<MultiTrack> tracker;
 
 int mode;
+int fps;
 
 bool classSetError = false;
 /*
@@ -255,11 +256,24 @@ void showUsage(string name) {
 	cerr << "\n"
 	"Usage:" << "\n\n" <<
 	"sam_sampler" << "\n" <<
-	"\t-m (or --mode) <recordonly|labelonly|labelvideo|recordandlabel>\n" <<
+	"\t-m (or --mode) <recordonly|labelonly|labelvideo|recordandlabel|fpstest|listdevices>\n" <<
 	"\t-s (or --source) <source: device number or video file>\n" <<
-	"\t-d (or --destination) <destination folder>" << "\n" << "\n" <<
+	"\t-d (or --destination) <destination folder>" << "\n" <<
+	"\t-f (or --fps) <frames per second>" << "\n\n" <<
 	"Default:" << "\n\n" <<
-	"sam_sampler" << " -m labelonly -s 0 -d Storage\n\n";
+	"sam_sampler" << " -m labelonly -s 0 -d Storage -f 60\n\n";
+}
+
+void searchVideoCaptures() {
+	VideoCapture capture;
+	int i;
+	for (i = 0; i < 5000; i++){
+		capture = VideoCapture(i);
+		if (capture.isOpened())
+			cout << "Device found with device number : " << i << endl;
+		capture.release();
+	}
+	cout << "finished at id : " << i << endl;
 }
 
 /**
@@ -276,6 +290,7 @@ int parseArgs(int argc, char* argv[]){
 	mode = LABEL_ONLY;
 	source = "0";
 	destination = "Storage";
+	fps = 60;
 
 	//Loop over args
 	for (int i = 1; i < argc; ++i) {
@@ -290,6 +305,8 @@ int parseArgs(int argc, char* argv[]){
 				mode = RECORD_AND_LABEL;
 			} else if (string(argv[i + 1]) == "fpstest") {
 				mode = FPS_TEST;
+			} else if (string(argv[i + 1]) == "listdevices") {
+				mode = LIST_DEVICES;
 			} else {
 				showUsage(argv[0]);
 				return 1;
@@ -308,11 +325,18 @@ int parseArgs(int argc, char* argv[]){
 				showUsage(argv[0]);
 				return 1;
 			}
+		} else if (string(argv[i]) == "-f" || string(argv[i]) == "--fps") {
+			if (i + 1 < argc) {
+				fps = atoi(argv[i + 1]);
+			} else {
+				showUsage(argv[0]);
+				return 1;
+			}
 		}
 	}
 
 	// get device number, if mode != LABEL_VIDEO
-	if (mode != 2) {
+	if (mode != LABEL_VIDEO) {
 		device = atoi(source.c_str());
 	}
 	return 0;
@@ -347,15 +371,10 @@ void createSubFolder(const string pathRGB, const string pathYOLOLabel) {
 		system(com_char);
 }
 
-string recordVideo(VideoCapture& capture, string pathFolder){
+int recordVideo(VideoCapture& capture, string pathFolder, string& pathVideo){
 	Mat frame;
-	// namedWindow(windowName);
-
-
 	Size size = Size((int) capture.get(CV_CAP_PROP_FRAME_WIDTH),    // Acquire input size
                 (int) capture.get(CV_CAP_PROP_FRAME_HEIGHT));
-	const string pathVideo = pathFolder + "SAM_VIDEO" + currentDateToString() + ".avi";
-	cout << pathVideo << endl;
 	// loop before saving the video
 	int key = 0;
 	while (key != 32) {
@@ -364,8 +383,23 @@ string recordVideo(VideoCapture& capture, string pathFolder){
 		putText(frame, text, Point(10, 30), 1, 2, Scalar(0, 255, 255), 2);
 		imshow(windowName, frame);
 		key = waitKey(10);
+		if (key == 'q') {
+			return 1;
+		}
 	}
 
+	int countDown = 50;
+	while (countDown > 0){
+			capture.read(frame);
+			const string countDownStr = boost::lexical_cast<string>(countDown / 10 + 1);
+			putText(frame, countDownStr, Point(10, 30), 1, 2, Scalar(0, 0, 255), 2);
+			imshow(windowName, frame);
+			countDown--;
+			waitKey(60);
+	}
+
+	pathVideo = pathFolder + "SAM_VIDEO" + currentDateToString() + ".avi";
+	cout << pathVideo << endl;
 	VideoWriter output(pathVideo, CV_FOURCC('M', 'P', '4', '2'),10, size, true);
 	/*
 	CV_FOURCC('P','I','M','1')    = MPEG-1 codec
@@ -379,8 +413,8 @@ string recordVideo(VideoCapture& capture, string pathFolder){
 	*/
 
 	// loop while saving the video
-	key = 0;
-	while (key != 32) {
+	key = -1;
+	while (key == -1) {
 		capture.read(frame);
 		output.write(frame);
 		string text = "REC";
@@ -388,25 +422,18 @@ string recordVideo(VideoCapture& capture, string pathFolder){
 		imshow(windowName, frame);
 		key = waitKey(30);
 	}
-	return pathVideo;
+	return 0;
 }
 
 void calcFPS() {
 	// Start default camera
-    VideoCapture video(0);
-
-    // With webcam get(CV_CAP_PROP_FPS) does not work.
-    // Let's see for ourselves.
-
+    VideoCapture video(device);
+		video.set(CV_CAP_PROP_FPS, fps);
     double fps = video.get(CV_CAP_PROP_FPS);
-    // If you do not care about backward compatibility
-    // You can use the following instead for OpenCV 3
-    // double fps = video.get(CAP_PROP_FPS);
-    cout << "Frames per second using video.get(CV_CAP_PROP_FPS) : " << fps << endl;
-
+    cout << "Frames per second promise : " << fps << endl;
 
     // Number of frames to capture
-    int num_frames = 120;
+    int num_frames = 480;
 
     // Start and end times
     time_t start, end;
@@ -449,6 +476,9 @@ int main(int argc, char* argv[]) {
 	if (mode == FPS_TEST) {
 		calcFPS();
 		return 0;
+	} else if (mode == LIST_DEVICES) {
+		searchVideoCaptures();
+		return 0;
 	}
 
 	// path to the folder where we save the photos
@@ -480,6 +510,7 @@ int main(int argc, char* argv[]) {
 	setMouseCallback(windowName, mouseHandle, &frame);
 
 	VideoCapture capture;
+	capture.set(CV_CAP_PROP_FPS, fps);
 
 	// Init VideoCapture
 	if (mode != LABEL_VIDEO){
@@ -495,9 +526,9 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (mode == RECORD_ONLY || mode == RECORD_AND_LABEL){
-		source = recordVideo(capture, pathSuper);
+		int retval = recordVideo(capture, pathSuper, source);
 		capture.release();
-		if (mode == RECORD_ONLY) {
+		if (mode == RECORD_ONLY || retval == 1) {
 			return 0;
 		}
 		capture = VideoCapture(source);
