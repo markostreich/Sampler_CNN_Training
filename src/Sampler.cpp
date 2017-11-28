@@ -24,7 +24,7 @@ using namespace std;
 using namespace cv;
 
 bool debug = false;
-
+const int linesize = 2;
 // name of the main video window
 const string windowName = "SAM Sampler";
 
@@ -163,11 +163,11 @@ void draw_ObjectRects(Mat& frame) {
 	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it){
 		if ((*it).active){
 			if ((*it).selected){
-				rectangle(frame, (*it).rect, (*it).color, 2, 1);
+				rectangle(frame, (*it).rect, (*it).color, 3, 1);
 				const string str = (*it).classification  + " " + (*it).direction;
 				putText(frame, str, Point(100, 30), 1, 2, (*it).color, 2);
 			} else {
-				rectangle(frame, (*it).rect, (*it).color, 1, 1);
+				rectangle(frame, (*it).rect, (*it).color, linesize, 1);
 			}
 		}
 	}
@@ -259,7 +259,7 @@ void showCommandlineUsage(string name) {
 	"\t-s (or --source) <source: device number or video file>\n" <<
 	"\t-d (or --destination) <destination folder>" << "\n" <<
 	"\t-f (or --fps) <frames per second>" << "\n\n" <<
-	"Default:" << "\n\n" <<
+	"Defaults:" << "\n\n" <<
 	"sam_sampler" << " -m labelonly -s 0 -d Storage -f 60\n\n";
 }
 
@@ -271,6 +271,10 @@ void showUsage() {
 	"\tc\tClassification 'car'\n" <<
 	"\tp\tClassification 'person'\n" <<
 	"\th\tClassification 'child'\n" <<
+	"\tarrow up\tClassification 'forward'\n" <<
+	"\tarrow right\tClassification 'right'\n" <<
+	"\tarrow down\tClassification 'down'\n" <<
+	"\tarrow left\tClassification 'left'\n" <<
 	"\t1-9\tSelect a Tracker'\n\n";
 }
 
@@ -650,7 +654,7 @@ int main(int argc, char* argv[]) {
 
 					}
 				}
-				rectangle(frame, objects.at(j).rect, objects.at(j).color, 1, 1);
+				rectangle(frame, objects.at(j).rect, objects.at(j).color, linesize, 1);
 			}
 
 			opendistFile.close();
