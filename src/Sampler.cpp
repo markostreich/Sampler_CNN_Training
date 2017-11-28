@@ -136,10 +136,9 @@ void convertToYOLOLabels(int wFrame, int hFrame, double xtl, double ytl,
 	hObj = hObj * dh;
 }
 
-CvScalar random_color()
-{
-int color = rand();
-return CV_RGB(color&255, (color>>8)&255, (color>>16)&255);
+CvScalar random_color() {
+	int color = rand();
+	return CV_RGB(color&255, (color>>8)&255, (color>>16)&255);
 }
 
 void init_ObjectRects(){
@@ -252,7 +251,7 @@ string currentDateToString() {
 /**
  * Help message in console.
  */
-void showUsage(string name) {
+void showCommandlineUsage(string name) {
 	cerr << "\n"
 	"Usage:" << "\n\n" <<
 	"sam_sampler" << "\n" <<
@@ -262,6 +261,17 @@ void showUsage(string name) {
 	"\t-f (or --fps) <frames per second>" << "\n\n" <<
 	"Default:" << "\n\n" <<
 	"sam_sampler" << " -m labelonly -s 0 -d Storage -f 60\n\n";
+}
+
+void showUsage() {
+	cout << "\n"
+	"Keys:" << "\n\n" <<
+	"\tq\tQuit\n" <<
+	"\tSpace\tStart Recording/Start Tracker Labeling\n" <<
+	"\tc\tClassification 'car'\n" <<
+	"\tp\tClassification 'person'\n" <<
+	"\th\tClassification 'child'\n" <<
+	"\t1-9\tSelect a Tracker'\n\n";
 }
 
 void searchVideoCaptures() {
@@ -282,7 +292,7 @@ void searchVideoCaptures() {
 int parseArgs(int argc, char* argv[]){
 	//check correct argc
 	if (argc % 2 == 0 || argc > 9){
-		showUsage(argv[0]);
+		showCommandlineUsage(argv[0]);
 		return 1;
 	}
 
@@ -308,28 +318,28 @@ int parseArgs(int argc, char* argv[]){
 			} else if (string(argv[i + 1]) == "listdevices") {
 				mode = LIST_DEVICES;
 			} else {
-				showUsage(argv[0]);
+				showCommandlineUsage(argv[0]);
 				return 1;
 			}
 		} else if (string(argv[i]) == "-s" || string(argv[i]) == "--source") {
 			if (i + 1 < argc) {
 				source = string(argv[i + 1]);
 			} else {
-				showUsage(argv[0]);
+				showCommandlineUsage(argv[0]);
 				return 1;
 			}
 		} else if (string(argv[i]) == "-d" || string(argv[i]) == "--destination") {
 			if (i + 1 < argc) {
 				destination = string(argv[i + 1]);
 			} else {
-				showUsage(argv[0]);
+				showCommandlineUsage(argv[0]);
 				return 1;
 			}
 		} else if (string(argv[i]) == "-f" || string(argv[i]) == "--fps") {
 			if (i + 1 < argc) {
 				fps = atoi(argv[i + 1]);
 			} else {
-				showUsage(argv[0]);
+				showCommandlineUsage(argv[0]);
 				return 1;
 			}
 		}
@@ -481,6 +491,9 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
+	// print key description in commandline
+	showUsage();
+
 	// path to the folder where we save the photos
 	const string pathSuper = destination + "/";
 	const string pathRGB = destination + "/RGB/";
@@ -511,8 +524,8 @@ int main(int argc, char* argv[]) {
 
 	VideoCapture capture;
 	capture.set(CV_CAP_PROP_FPS, fps);
-	capture.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
-	capture.set(CV_CAP_PROP_FRAME_WIDTH, 640);
+	// capture.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
+	// capture.set(CV_CAP_PROP_FRAME_WIDTH, 640);
 
 	// Init VideoCapture
 	if (mode != LABEL_VIDEO){
@@ -536,7 +549,7 @@ int main(int argc, char* argv[]) {
 		capture = VideoCapture(source);
 	}
 
-		createSubFolder(pathRGB, pathYOLOLabel);
+	createSubFolder(pathRGB, pathYOLOLabel);
 
 	//store labels in one file
 	const string pathLabelFile = destination + "/labels.txt";
@@ -581,10 +594,11 @@ int main(int argc, char* argv[]) {
 		init_tracker(blankFrame);
 		key = -1;
 		while (32 != key) {
-			if (!capture.read(frame)) {
+			if (!capture.read(blankFrame)) {
 				cout << "Finished Labeling.\n";
 				return 0;
 			}
+			frame=blankFrame.clone();
 			tracker->update(frame);
 
 			// save image file
