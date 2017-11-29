@@ -275,7 +275,7 @@ void showUsage() {
 	"\tarrow right\tClassification 'right'\n" <<
 	"\tarrow down\tClassification 'down'\n" <<
 	"\tarrow left\tClassification 'left'\n" <<
-	"\t1-9\tSelect a Tracker'\n\n";
+	"\t1-9\tSelect a Tracker\n\n";
 }
 
 void searchVideoCaptures() {
