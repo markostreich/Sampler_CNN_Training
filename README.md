@@ -2,7 +2,7 @@
 
 * __Kompilieren__:
     Zum kompilieren des Projekts einfach ```make``` eingeben.
-    Nach Abschluss des Kompiliervorgangs findet sich in __bin__ ```$RUNDIR``` eine ausführbare Datei __runner__ ```$TARGET```
+    Nach Abschluss des Kompiliervorgangs findet sich in __bin__ ```$RUNDIR``` eine ausführbare Datei __sam_sampler__ ```$TARGET```
 
 * __Zurücksetzen__:
     Mit ```make clean``` werden alle Kompilierten Dateien wieder gelöscht.
