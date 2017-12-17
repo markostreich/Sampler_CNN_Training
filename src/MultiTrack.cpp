@@ -1,7 +1,8 @@
 /*
  * MultiTrack.cpp
  *
- *  Created on: 24.05.2017
+ *  Created on: 17.12.2017
+ *	Revised on: 17.12.2017
  *      Author: Marko Streich
  */
 #include "MultiTrack.hpp"
@@ -9,7 +10,8 @@
 MultiTrack::MultiTrack(){
   amountTracker = 0;
   imageArrived = false;
-  running = true;}
+  running = true;
+}
 
 MultiTrack::~MultiTrack() {
 	running = false;
@@ -45,29 +47,24 @@ bool MultiTrack::update(const Mat& image){
   condImage.notify_all();
   std::unique_lock<std::mutex> lckUnfinished (mtxUnfinished);
   while(unfinishedTracker > 0){
-     cout << "wait for tracker" << endl;
     condAmountTracker.wait(lckUnfinished);
     lckUnfinished.unlock();
-      // cout << "update awaked" << endl;
   }
     return true;
 }
 
-void MultiTrack::threadUpdate(int index/*, const Mat& image*/){
+void MultiTrack::threadUpdate(int index){
   int ownIndex = index;
   while (running){
     std::unique_lock<std::mutex> lck(mtxImage);
     while (!imageArrived){
-    // cout << ownIndex << " starts sleeping." << endl;
       condImage.wait(lck);
       lck.unlock();
     }
-    // cout << ownIndex << " woke up" << endl;
     if (!running) return;
     objects[ownIndex] = trackerList[ownIndex]->update(currentImage);
     std::unique_lock<std::mutex> lckUnfinished (mtxUnfinished);
     unfinishedTracker--;
-      // cout << unfinishedTracker << endl;
     if (unfinishedTracker <= 0){
       imageArrived = false;
       condAmountTracker.notify_all();

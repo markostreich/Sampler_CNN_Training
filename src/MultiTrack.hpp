@@ -2,6 +2,7 @@
  * MultiTrack.h
  *
  *  Created on: 24.05.2017
+ *	Revised on: 17.12.2017
  *      Author: Marko Streich
  */
 
@@ -25,7 +26,6 @@
 #include "kcftracker.hpp"
 
 using namespace cv;
-using namespace std;
 
 class MultiTrack : public cv::MultiTracker_Alt{
 public:
@@ -41,7 +41,7 @@ public:
 	std::vector< Ptr<KCFTracker> > trackerList;
 
 private:
-	void threadUpdate(int index/*, const Mat& image*/);
+	void threadUpdate(int index);
 	int amountTracker;
 	Mat currentImage;
 	std::mutex mtxImage;
