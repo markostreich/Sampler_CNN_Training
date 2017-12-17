@@ -590,6 +590,7 @@ int main(int argc, char* argv[]) {
 			} else if (key == 'q') {
 				openFile.close();
 				capture.release();
+				cvDestroyAllWindows();
 				return 0;
 			} else {
 				key_handle(key);
@@ -680,5 +681,8 @@ int main(int argc, char* argv[]) {
 		}
 		startTracking = false;
 	}
+	capture.release();
+	openFile.close();
+	cvDestroyAllWindows();
 	return 0;
 }
