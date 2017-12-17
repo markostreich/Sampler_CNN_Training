@@ -1,10 +1,9 @@
 /*
- * MultiTrackingPlus.cpp
+ * MultiTrack.cpp
  *
  *  Created on: 24.05.2017
- *      Author: korsak
+ *      Author: Marko Streich
  */
-
 #include "MultiTrack.hpp"
 
 MultiTrack::MultiTrack(){}
@@ -27,8 +26,16 @@ void MultiTrack::add(const Mat& image, const Rect2d& boundingBox){
 }
 
 bool MultiTrack::update(const Mat& image){
-    for(unsigned i=0;i< trackerList.size(); i++){
-      objects[i] = trackerList[i]->update(image);
+    for(unsigned i = 0;i < trackerList.size(); i++) {
+      threadGroup.push_back(new std::thread(&MultiTrack::threadUpdate, this, i, image));
     }
+    for(unsigned i = 0;i < trackerList.size(); i++) {
+      threadGroup[i]->join();
+    }
+    threadGroup.clear();
     return true;
+}
+
+void MultiTrack::threadUpdate(int index, const Mat& image){
+    objects[index] = trackerList[index]->update(image);
 }
