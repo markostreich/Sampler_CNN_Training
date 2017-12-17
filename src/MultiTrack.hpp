@@ -17,12 +17,15 @@
 #include <opencv2/tracking.hpp>
 #include <opencv2/opencv.hpp>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <stdio.h>
 #include <string>
 #include <vector>
 #include "kcftracker.hpp"
 
 using namespace cv;
+using namespace std;
 
 class MultiTrack : public cv::MultiTracker_Alt{
 public:
@@ -38,8 +41,17 @@ public:
 	std::vector< Ptr<KCFTracker> > trackerList;
 
 private:
+	void threadUpdate(int index/*, const Mat& image*/);
+	int amountTracker;
+	Mat currentImage;
+	std::mutex mtxImage;
+	std::mutex mtxUnfinished;
+	std::condition_variable condImage;
+	std::condition_variable condAmountTracker;
 	std::vector< Ptr<std::thread> > threadGroup;
-	void threadUpdate(int index, const Mat& image);
+	bool imageArrived;
+	bool running;
+	int unfinishedTracker;
 };
 
 #endif /* SRC_MULTITRACK_H_ */

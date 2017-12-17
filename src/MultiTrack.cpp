@@ -6,12 +6,17 @@
  */
 #include "MultiTrack.hpp"
 
-MultiTrack::MultiTrack(){}
+MultiTrack::MultiTrack(){
+  amountTracker = 0;
+  imageArrived = false;
+  running = true;}
 
 MultiTrack::~MultiTrack() {
-	// TODO Auto-generated destructor stub
+	running = false;
+  threadGroup.clear();
 }
 void MultiTrack::add(const Mat& image, const Rect2d& boundingBox){
+
     // declare a new tracker
     Ptr<KCFTracker> newTracker = new KCFTracker(true, true, true, true);
 
@@ -23,19 +28,50 @@ void MultiTrack::add(const Mat& image, const Rect2d& boundingBox){
 
     // initialize the created tracker
     trackerList.back()->init(boundingBox, image);
+    Ptr<std::thread> thr = new std::thread(&MultiTrack::threadUpdate, this, amountTracker++);
+    thr->detach();
+    threadGroup.push_back(thr);
+
 }
 
 bool MultiTrack::update(const Mat& image){
-    for(unsigned i = 0;i < trackerList.size(); i++) {
-      threadGroup.push_back(new std::thread(&MultiTrack::threadUpdate, this, i, image));
-    }
-    for(unsigned i = 0;i < trackerList.size(); i++) {
-      threadGroup[i]->join();
-    }
-    threadGroup.clear();
+  if (trackerList.size() <= 0)
+    return false;
+  currentImage = image;
+  std::unique_lock<std::mutex> lck(mtxImage);
+  imageArrived = true;
+  unfinishedTracker = amountTracker + 1;
+  lck.unlock();
+  condImage.notify_all();
+  std::unique_lock<std::mutex> lckUnfinished (mtxUnfinished);
+  while(unfinishedTracker > 0){
+     cout << "wait for tracker" << endl;
+    condAmountTracker.wait(lckUnfinished);
+    lckUnfinished.unlock();
+      // cout << "update awaked" << endl;
+  }
     return true;
 }
 
-void MultiTrack::threadUpdate(int index, const Mat& image){
-    objects[index] = trackerList[index]->update(image);
+void MultiTrack::threadUpdate(int index/*, const Mat& image*/){
+  int ownIndex = index;
+  while (running){
+    std::unique_lock<std::mutex> lck(mtxImage);
+    while (!imageArrived){
+    // cout << ownIndex << " starts sleeping." << endl;
+      condImage.wait(lck);
+      lck.unlock();
+    }
+    // cout << ownIndex << " woke up" << endl;
+    if (!running) return;
+    objects[ownIndex] = trackerList[ownIndex]->update(currentImage);
+    std::unique_lock<std::mutex> lckUnfinished (mtxUnfinished);
+    unfinishedTracker--;
+      // cout << unfinishedTracker << endl;
+    if (unfinishedTracker <= 0){
+      imageArrived = false;
+      condAmountTracker.notify_all();
+    }
+    lckUnfinished.unlock();
+  }
 }
