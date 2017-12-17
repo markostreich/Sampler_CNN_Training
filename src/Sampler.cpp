@@ -17,6 +17,7 @@
 #include <iostream>
 #include <fstream>
 #include <ctime>
+#include <cmath>
 #include "MultiTrack.hpp"
 #include "SamplerHelper.hpp"
 
@@ -273,7 +274,7 @@ void showUsage() {
 	"\th\tClassification 'child'\n" <<
 	"\tarrow up\tClassification 'forward'\n" <<
 	"\tarrow right\tClassification 'right'\n" <<
-	"\tarrow down\tClassification 'down'\n" <<
+	"\tarrow down\tClassification 'backward'\n" <<
 	"\tarrow left\tClassification 'left'\n" <<
 	"\t1-9\tSelect a Tracker\n\n";
 }
@@ -594,7 +595,9 @@ int main(int argc, char* argv[]) {
 				key_handle(key);
 			}
 		}
-
+		time_t start, end;
+		time(&start);
+		int countFramesAtStart = image_counter;
 		init_tracker(blankFrame);
 		key = -1;
 		while (32 != key) {
@@ -603,12 +606,15 @@ int main(int argc, char* argv[]) {
 				return 0;
 			}
 			frame=blankFrame.clone();
+
 			tracker->update(frame);
 
 			// save image file
 			string currentDate = currentDateToString();
-			string imageFileName = format("%simage-%d-", path_RGB, image_counter) + currentDate + ".JPEG";
-			imwrite(imageFileName, frame);
+			if (safeToFiles){
+				string imageFileName = format("%simage-%d-", path_RGB, image_counter) + currentDate + ".JPEG";
+				imwrite(imageFileName, frame);
+			}
 
 			ofstream opendistFile;
 			if (safeToFiles){
@@ -661,8 +667,13 @@ int main(int argc, char* argv[]) {
 
 			const string counterStr = boost::lexical_cast<string>(image_counter);
 			putText(frame, counterStr, Point(10, 30), 1, 2, Scalar(0, 255, 255), 2);
-			imshow(windowName, frame);
 			image_counter++;
+			time(&end);
+	    double seconds = difftime (end, start);
+	    double fps  = (image_counter - countFramesAtStart) / seconds;
+			const string fpsStr = format("%.1f", fps);//boost::lexical_cast<string>(round(fps));
+			putText(frame, fpsStr + " FPS", Point(490, 30), 1, 2, Scalar(0, 255, 255), 2);
+			imshow(windowName, frame);
 			if (mode == LABEL_VIDEO || mode == RECORD_AND_LABEL)
 				key = waitKey(1);
 			else key = waitKey(20);
