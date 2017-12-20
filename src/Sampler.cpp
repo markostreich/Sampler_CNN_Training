@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <string>
 #include <boost/lexical_cast.hpp>
+#include <boost/filesystem.hpp>
 #include <iostream>
 #include <fstream>
 #include <ctime>
@@ -23,6 +24,7 @@
 
 using namespace std;
 using namespace cv;
+using namespace boost::filesystem;
 
 bool debug = false;
 const int linesize = 2;
@@ -482,8 +484,26 @@ void calcFPS() {
     video.release();
 }
 
+void reviseLabels(const string p){
+	const path pathRGB(p + "/RGB");
+	const path pathYOLO(p + "/YOLO_Labels");
+	directory_iterator it{pathRGB};
+	int key = -1;
+
+	while (it != directory_iterator{}){
+		const directory_entry& entry = *it;
+		Mat image = imread((*it).path().string(),CV_LOAD_IMAGE_COLOR);
+
+		std::cout << *it++ << '\n';
+		key = waitKey(0);
+	}
+}
+
 int main(int argc, char* argv[]) {
 
+	const string p("Samples271117");
+	reviseLabels(p);
+	return 0;
 	if (parseArgs(argc, argv) == 1) {
 		return 1;
 	}
