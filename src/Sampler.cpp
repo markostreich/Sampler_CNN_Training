@@ -15,6 +15,9 @@
 #include <string>
 #include <boost/lexical_cast.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/lambda/bind.hpp>
+#include <boost/assign/std/vector.hpp>
+#include <boost/sort/spreadsort/string_sort.hpp>
 #include <iostream>
 #include <fstream>
 #include <ctime>
@@ -25,6 +28,10 @@
 using namespace std;
 using namespace cv;
 using namespace boost::filesystem;
+using namespace boost::assign;
+using namespace boost::sort::spreadsort;
+
+const bool safeToFiles = true;
 
 bool debug = false;
 const int linesize = 2;
@@ -50,7 +57,6 @@ short selectedRect = 1;
 // mouse states
 bool mouseIsDragging, mouseMove, drawRect;
 
-const bool safeToFiles = true;
 
 Ptr<MultiTrack> tracker;
 
@@ -487,21 +493,33 @@ void calcFPS() {
 void reviseLabels(const string p){
 	const path pathRGB(p + "/RGB");
 	const path pathYOLO(p + "/YOLO_Labels");
+	int cntFiles = std::count_if(
+        directory_iterator(pathRGB),
+        directory_iterator(),
+        static_cast<bool(*)(const path&)>(is_regular_file) );
+	vector<string> files;
 	directory_iterator it{pathRGB};
-	int key = -1;
-
 	while (it != directory_iterator{}){
-		const directory_entry& entry = *it;
-		Mat image = imread((*it).path().string(),CV_LOAD_IMAGE_COLOR);
-
-		std::cout << *it++ << '\n';
+		files += (*it++).path().string();
+	}
+	string_sort(files.begin(), files.end());
+	int fileIndex = 0;
+	int key = -1;
+	while (key != 'q'){
+		Mat image = imread(files[fileIndex],CV_LOAD_IMAGE_COLOR);
+		imshow(windowName, image);
+		// cout << files[fileIndex] << endl;
 		key = waitKey(0);
+		if (key == '+' && fileIndex + 1 < cntFiles)
+			fileIndex++;
+		else if (key == '-' && fileIndex - 1 >= 0)
+			fileIndex--;
 	}
 }
 
 int main(int argc, char* argv[]) {
 
-	const string p("Samples271117");
+	const string p("Storage");
 	reviseLabels(p);
 	return 0;
 	if (parseArgs(argc, argv) == 1) {
@@ -633,7 +651,7 @@ int main(int argc, char* argv[]) {
 			// save image file
 			string currentDate = currentDateToString();
 			if (safeToFiles){
-				string imageFileName = format("%simage-%d-", path_RGB, image_counter) + currentDate + ".JPEG";
+				string imageFileName = format("%simage", path_RGB) + "-" + currentDate + "-" + format("%04d",image_counter) + ".JPEG";
 				imwrite(imageFileName, frame);
 			}
 
@@ -641,8 +659,7 @@ int main(int argc, char* argv[]) {
 			if (safeToFiles){
 				if (YOLOLabels) {
 					//store labels in distinct files
-					const string distFilesPath = format("%simage-%d-",
-							path_Label, image_counter) + currentDate + ".txt";
+					const string distFilesPath = format("%simage-%s-%d", path_Label, currentDate, image_counter) + ".txt";
 					char * dist_files_path = new char[distFilesPath.size() + 1];
 					dist_files_path[distFilesPath.size()] = 0;
 					memcpy(dist_files_path, distFilesPath.c_str(),
@@ -665,7 +682,7 @@ int main(int argc, char* argv[]) {
 
 				if (safeToFiles) {
 					// <filename> <classname> <middle.x> <middle.y> <object width> <object height> <image width> <image height>
-					string imageFileName = format("image-%d-", image_counter) + currentDate + ".JPEG";
+					string imageFileName = format("image-%s-%d", currentDate, image_counter) + ".JPEG";
 					openFile << imageFileName << " "
 					<< objects.at(j).classification << objects.at(j).direction << " " << (int)((br.x - tl.x) / 2) << " "
 					<< (int)((br.y - tl.y) / 2) << " " << br.x - tl.x << " "

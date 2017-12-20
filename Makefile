@@ -13,7 +13,7 @@ OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 # Compiler
 CC := g++
 CFLAGS := -g -std=c++11 -Wall -pedantic
-LIB := -lopencv_core -lopencv_imgcodecs -lopencv_video -lopencv_imgproc -lopencv_videoio -lopencv_highgui -lpthread
+LIB := -lopencv_core -lopencv_imgcodecs -lopencv_video -lopencv_imgproc -lopencv_videoio -lopencv_highgui -lpthread -lboost_filesystem -lboost_system
 INC?="-I/usr/local/include/opencv -I/usr/local/include"
 
 
