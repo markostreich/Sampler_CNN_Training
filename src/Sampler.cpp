@@ -33,7 +33,7 @@ using namespace boost::sort::spreadsort;
 
 const bool safeToFiles = true;
 
-bool debug = false;
+bool debug = true;
 const int linesize = 2;
 // name of the main video window
 const string windowName = "SAM Sampler";
@@ -207,7 +207,7 @@ void key_handle(int key){
 	if (debug){
 		cout << "key pressed: " << key << endl;
 	}
-	if (key >= 48 && key <= 57) {
+	if (key >= 49 && key <= 57) {
 		objects.at(selectedRect-1).selected = false;
 		selectedRect = key - 48;
 		objects.at(selectedRect-1).selected = true;
@@ -330,6 +330,8 @@ int parseArgs(int argc, char* argv[]){
 				mode = FPS_TEST;
 			} else if (string(argv[i + 1]) == "listdevices") {
 				mode = LIST_DEVICES;
+			} else if (string(argv[i + 1]) == "reviselabels"){
+				mode = REVISE_LABELS;
 			} else {
 				showCommandlineUsage(argv[0]);
 				return 1;
@@ -505,23 +507,49 @@ void reviseLabels(const string p){
 	string_sort(files.begin(), files.end());
 	int fileIndex = 0;
 	int key = -1;
+	Mat image;
+	setMouseCallback(windowName, mouseHandle, &image);
+	init_ObjectRects();
 	while (key != 'q'){
-		Mat image = imread(files[fileIndex],CV_LOAD_IMAGE_COLOR);
+		image = imread(files[fileIndex],CV_LOAD_IMAGE_COLOR);
+		draw_ObjectRects(image);
 		imshow(windowName, image);
 		// cout << files[fileIndex] << endl;
-		key = waitKey(0);
-		if (key == '+' && fileIndex + 1 < cntFiles)
-			fileIndex++;
-		else if (key == '-' && fileIndex - 1 >= 0)
-			fileIndex--;
+		key = waitKey(10);
+			if (key == '+' && fileIndex + 1 < cntFiles)
+				fileIndex++;
+			else if (key == '-' && fileIndex - 1 >= 0)
+				fileIndex--;
+			else
+				key_handle(key);
 	}
 }
+/*
 
+draw_ObjectRects(frame);
+const string str = boost::lexical_cast<string>(image_counter);
+putText(frame, str, Point(10, 30), 1, 2, Scalar(0, 255, 255), 2);
+imshow(windowName, frame);
+if (countFrames < 3) countFrames++;
+if ((mode == LABEL_VIDEO && countFrames == 3) || (mode == RECORD_AND_LABEL && countFrames == 3)) {
+	doCapturing = false;
+}
+key = waitKey(1);
+if (key == 32) {
+	if (all_classes_set()) {
+		startTracking = true;
+	}
+} else if (key == 'q') {
+	openFile.close();
+	capture.release();
+	cvDestroyAllWindows();
+	return 0;
+} else {
+	key_handle(key);
+}
+*/
 int main(int argc, char* argv[]) {
 
-	const string p("Storage");
-	reviseLabels(p);
-	return 0;
 	if (parseArgs(argc, argv) == 1) {
 		return 1;
 	}
@@ -531,6 +559,9 @@ int main(int argc, char* argv[]) {
 		return 0;
 	} else if (mode == LIST_DEVICES) {
 		searchVideoCaptures();
+		return 0;
+	} else if (mode == REVISE_LABELS){
+		reviseLabels(destination);
 		return 0;
 	}
 
