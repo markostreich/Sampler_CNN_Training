@@ -96,10 +96,10 @@ void mouseHandle(int event, int x, int y, int flags, void* param) {
 		objects.at(selectedRect-1).rect = Rect2d(initialClickPoint, currentSecondPoint);
 		objects.at(selectedRect-1).active = true;
 		objects.at(selectedRect-1).selected = true;
-		if (debug){
-			Rect2d rect = objects.at(selectedRect-1).rect;
-			// cout << format("%f %f %f %f", rect.tl().x,rect.tl().y,rect.br().x,rect.br().y) << endl;
-		}
+		// if (debug){
+		// 	Rect2d rect = objects.at(selectedRect-1).rect;
+		// 	// cout << format("%f %f %f %f", rect.tl().x,rect.tl().y,rect.br().x,rect.br().y) << endl;
+		// }
 		// bbox = Rect2d(initialClickPoint, currentSecondPoint);
 		drawRect = true;
 	}
@@ -182,6 +182,16 @@ void init_ObjectRects(){
 		newObjRect.classification = "unkown";
 		newObjRect.direction = "unkown";
 		objects.push_back(newObjRect);
+	}
+}
+
+void resetObjects() {
+	for (int i = 1; i <= 9; i++){
+		objects.at(i - 1).number = i;
+		objects.at(i - 1).active = false;
+		objects.at(i - 1).selected = false;
+		objects.at(i - 1).classification = "unkown";
+		objects.at(i - 1).direction = "unkown";
 	}
 }
 
@@ -285,7 +295,7 @@ void showCommandlineUsage(string name) {
 	cerr << "\n"
 	"Usage:" << "\n\n" <<
 	"sam_sampler" << "\n" <<
-	"\t-m (or --mode) <recordonly|labelonly|labelvideo|recordandlabel|fpstest|listdevices>\n" <<
+	"\t-m (or --mode) <recordonly|labelonly|labelvideo|recordandlabel|reviselabels|fpstest|listdevices>\n" <<
 	"\t-s (or --source) <source: device number or video file>\n" <<
 	"\t-d (or --destination) <destination folder>" << "\n" <<
 	"\t-f (or --fps) <frames per second>" << "\n\n" <<
@@ -294,6 +304,21 @@ void showCommandlineUsage(string name) {
 }
 
 void showUsage() {
+	cout << "\n"
+	"Keys:" << "\n\n" <<
+	"\tq\tQuit\n" <<
+	"\tSpace\tStart Recording/Start Tracker Labeling/Revise Label\n" <<
+	"\tc\tClassification 'car'\n" <<
+	"\tp\tClassification 'person'\n" <<
+	"\th\tClassification 'child'\n" <<
+	"\tarrow up\tClassification 'forward'\n" <<
+	"\tarrow right\tClassification 'right'\n" <<
+	"\tarrow down\tClassification 'backward'\n" <<
+	"\tarrow left\tClassification 'left'\n" <<
+	"\t1-9\tSelect a Tracker\n\n";
+}
+
+void showUsageRevision() {
 	cout << "\n"
 	"Keys:" << "\n\n" <<
 	"\tq\tQuit\n" <<
@@ -585,6 +610,10 @@ void setObjectClassification(ObjectRect & obj, string classification) {
 }
 
 void reviseLabels(const string p) {
+	double xObj, yObj, wObj, hObj, xtl, ytl, xbr, ybr;
+	int fileIndex = 0;
+	int key = -1;
+	Mat image;
 	const path pathRGB(p + "/RGB");
 	const path pathYOLO(p + "/YOLO_Labels");
 	int cntFiles = std::count_if(
@@ -597,18 +626,18 @@ void reviseLabels(const string p) {
 		files += (*it++).path().string();
 	}
 	string_sort(files.begin(), files.end());
-	int fileIndex = 0;
-	int key = -1;
-	Mat image;
 	namedWindow(windowName);
 	setMouseCallback(windowName, mouseHandle, &image);
 	init_ObjectRects();
-	double xObj, yObj, wObj, hObj, xtl, ytl, xbr, ybr;
 	while (true) {
-		init_ObjectRects();
+		selectedRect = 1;
+		// objects.clear();
+		resetObjects();
+		// init_ObjectRects();
 		image = imread(files[fileIndex],CV_LOAD_IMAGE_COLOR);
 		// cout << get_file_contents(p + "/YOLO_Labels/" + get_yolo_file(files[fileIndex])) << endl;
 		string yoloString = get_file_contents(p + "/YOLO_Labels/" + get_yolo_file(files[fileIndex]));
+		yoloString = replaceString(yoloString, "\n", " ");
 		vector<string> yoloValues = splitString(yoloString, ' ');
 		unsigned int i = 0;
 		unsigned int obj = 0;
@@ -621,14 +650,15 @@ void reviseLabels(const string p) {
 			// cout << yObj << endl;
 			wObj = boost::lexical_cast<double>(yoloValues[i++]);
 			// cout << wObj << endl;
-			yoloValues[4].erase(yoloValues[i].length()-1); //erase space at line end
 			hObj = boost::lexical_cast<double>(yoloValues[i++]);
-			i++;
 			// cout << hObj << endl;
 			convertFromYOLOLabels(xObj, yObj, wObj, hObj, image.cols, image.rows, xtl, ytl, xbr, ybr);
 			objects.at(obj).rect = Rect2d(Point2d(xtl, ytl), Point2d(xbr, ybr));
 			objects.at(obj).active = true;
-			objects.at(obj).selected = true;
+			if (obj == 0)
+				objects.at(obj).selected = true;
+			else
+				objects.at(obj).selected = false;
 			obj++;
 		}
 		bool next = false;

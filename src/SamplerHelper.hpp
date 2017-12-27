@@ -28,8 +28,8 @@ std::string replaceString(std::string &s,
                       const std::string &toReplace,
                       const std::string &replaceWith)
 {
-    if (s.find(toReplace) != std::string::npos)
-      return(s.replace(s.find(toReplace), toReplace.length(), replaceWith));
+    while (s.find(toReplace) != std::string::npos)
+      s.replace(s.find(toReplace), toReplace.length(), replaceWith);
     return s;
 }
 
