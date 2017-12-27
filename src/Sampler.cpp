@@ -307,7 +307,7 @@ void showUsage() {
 	cout << "\n"
 	"Keys:" << "\n\n" <<
 	"\tq\tQuit\n" <<
-	"\tSpace\tStart Recording/Start Tracker Labeling/Revise Label\n" <<
+	"\tSpace\tStart Recording/Start Tracker Labeling\n" <<
 	"\tc\tClassification 'car'\n" <<
 	"\tp\tClassification 'person'\n" <<
 	"\th\tClassification 'child'\n" <<
@@ -322,7 +322,7 @@ void showUsageRevision() {
 	cout << "\n"
 	"Keys:" << "\n\n" <<
 	"\tq\tQuit\n" <<
-	"\tSpace\tStart Recording/Start Tracker Labeling/Revise Label\n" <<
+	"\tSpace\tSave Revision\n" <<
 	"\tc\tClassification 'car'\n" <<
 	"\tp\tClassification 'person'\n" <<
 	"\th\tClassification 'child'\n" <<
@@ -330,7 +330,9 @@ void showUsageRevision() {
 	"\tarrow right\tClassification 'right'\n" <<
 	"\tarrow down\tClassification 'backward'\n" <<
 	"\tarrow left\tClassification 'left'\n" <<
-	"\t1-9\tSelect a Tracker\n\n";
+	"\t1-9\tSelect an Object\n" <<
+	"\t+\tNext Sample\n" <<
+	"\t-\tPrevious Sample\n\n";
 }
 
 void searchVideoCaptures() {
@@ -584,9 +586,6 @@ void safeYOLOLabelsRevision(string pathRGB, string pathYOLOLabel, Mat frame) {
 			// store labels in distinct files for YOLO
 			double xObj, yObj, wObj, hObj;
 			convertToYOLOLabels(frame.cols, frame.rows, tl.x, tl.y, br.x, br.y, xObj, yObj, wObj, hObj);
-			// printf("Pixel: %f %f %f %f",tl.x, tl.y, br.x, br.y);
-			// cout << "Gespeichert: " << xObj << " " << yObj << " " << wObj << " " << hObj << endl;
-			// <filename> <classname> <relative middle.x> <relative middle.y> <relative width> <relative height>
 			opendistFile << objects.at(i).classification << objects.at(i).direction << " " << xObj << " " << yObj << " " << wObj << " " << hObj << endl;
 		}
 	}
@@ -695,7 +694,7 @@ int main(int argc, char* argv[]) {
 		searchVideoCaptures();
 		return 0;
 	} else if (mode == REVISE_LABELS){
-		showUsage();
+		showUsageRevision();
 		reviseLabels(destination);
 		return 0;
 	}
