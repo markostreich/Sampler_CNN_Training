@@ -13,26 +13,42 @@
 #include <opencv2/opencv.hpp>
 #include <stdio.h>
 #include <string>
+#include <algorithm>
 #include <boost/lexical_cast.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/lambda/bind.hpp>
+#include <boost/assign/std/vector.hpp>
+#include <boost/sort/spreadsort/string_sort.hpp>
+#include <ostream>
+#include <boost/iostreams/device/file.hpp>
+#include <boost/iostreams/stream.hpp>
 #include <iostream>
 #include <fstream>
 #include <ctime>
 #include <cmath>
 #include "MultiTrack.hpp"
 #include "SamplerHelper.hpp"
+#include <streambuf>
+#include <cerrno>
 
 using namespace std;
 using namespace cv;
+using namespace boost::filesystem;
+using namespace boost::assign;
+using namespace boost::sort::spreadsort;
+using namespace boost::iostreams;
+
+const bool safeToFiles = true;
 
 bool debug = false;
-const int linesize = 2;
+const int linesize = 1;
 // name of the main video window
 const string windowName = "SAM Sampler";
 
 string destination;
 
-string source = "";
-int device = 0;
+string capSource = "";
+int capDev = 0;
 
 bool YOLOLabels = true;
 
@@ -48,7 +64,6 @@ short selectedRect = 1;
 // mouse states
 bool mouseIsDragging, mouseMove, drawRect;
 
-const bool safeToFiles = true;
 
 Ptr<MultiTrack> tracker;
 
@@ -60,7 +75,6 @@ bool classSetError = false;
  * handler of mouse events in the main window
  */
 void mouseHandle(int event, int x, int y, int flags, void* param) {
-
 	// user has pushed left button
 	if (event == CV_EVENT_LBUTTONDOWN && mouseIsDragging == false) {
 		initialClickPoint = Point(x, y);
@@ -82,10 +96,10 @@ void mouseHandle(int event, int x, int y, int flags, void* param) {
 		objects.at(selectedRect-1).rect = Rect2d(initialClickPoint, currentSecondPoint);
 		objects.at(selectedRect-1).active = true;
 		objects.at(selectedRect-1).selected = true;
-		if (debug){
-			Rect2d rect = objects.at(selectedRect-1).rect;
-			cout << format("%f %f %f %f", rect.tl().x,rect.tl().y,rect.br().x,rect.br().y) << endl;
-		}
+		// if (debug){
+		// 	Rect2d rect = objects.at(selectedRect-1).rect;
+		// 	// cout << format("%f %f %f %f", rect.tl().x,rect.tl().y,rect.br().x,rect.br().y) << endl;
+		// }
 		// bbox = Rect2d(initialClickPoint, currentSecondPoint);
 		drawRect = true;
 	}
@@ -137,6 +151,21 @@ void convertToYOLOLabels(int wFrame, int hFrame, double xtl, double ytl,
 	hObj = hObj * dh;
 }
 
+void convertFromYOLOLabels(double xObj, double yObj, double wObj, double hObj,
+	int wFrame, int hFrame, double &xtl, double &ytl, double &xbr, double &ybr) {
+	double dw = 1.0 / (double) wFrame;
+	double dh = 1.0 / (double) hFrame;
+	wObj = wObj / dw;
+	hObj = hObj / dh;
+	xObj = xObj / dw;
+	yObj = yObj / dh;
+	xtl = xObj + 1.0 - wObj / 2.0;
+	xbr = xObj + 1.0 + wObj / 2.0;
+	ytl = yObj + 1.0 - hObj / 2.0;
+	ybr = yObj + 1.0 + hObj / 2.0;
+	// printf("Errechnet: xtl:%f ytl:%f xbr:%f ybr:%f\n", xtl, ytl, xbr, ybr);
+}
+
 CvScalar random_color() {
 	int color = rand();
 	return CV_RGB(color&255, (color>>8)&255, (color>>16)&255);
@@ -156,15 +185,25 @@ void init_ObjectRects(){
 	}
 }
 
+void resetObjects() {
+	for (int i = 1; i <= 9; i++){
+		objects.at(i - 1).number = i;
+		objects.at(i - 1).active = false;
+		objects.at(i - 1).selected = false;
+		objects.at(i - 1).classification = "unkown";
+		objects.at(i - 1).direction = "unkown";
+	}
+}
+
 /**
  * Draws rectangles of tagged objects into a given frame.
  *
  */
 void draw_ObjectRects(Mat& frame) {
-	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it){
+	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it) {
 		if ((*it).active){
 			if ((*it).selected){
-				rectangle(frame, (*it).rect, (*it).color, 3, 1);
+				rectangle(frame, (*it).rect, (*it).color, 2, 1);
 				const string str = (*it).classification  + " " + (*it).direction;
 				putText(frame, str, Point(100, 30), 1, 2, (*it).color, 2);
 			} else {
@@ -197,9 +236,9 @@ bool all_classes_set(){
 
 void key_handle(int key){
 	if (debug){
-		cout << "key pressed: " << key << endl;
+		// cout << "key pressed: " << key << endl;
 	}
-	if (key >= 48 && key <= 57) {
+	if (key >= 49 && key <= 57) {
 		objects.at(selectedRect-1).selected = false;
 		selectedRect = key - 48;
 		objects.at(selectedRect-1).selected = true;
@@ -256,7 +295,7 @@ void showCommandlineUsage(string name) {
 	cerr << "\n"
 	"Usage:" << "\n\n" <<
 	"sam_sampler" << "\n" <<
-	"\t-m (or --mode) <recordonly|labelonly|labelvideo|recordandlabel|fpstest|listdevices>\n" <<
+	"\t-m (or --mode) <recordonly|labelonly|labelvideo|recordandlabel|reviselabels|fpstest|listdevices>\n" <<
 	"\t-s (or --source) <source: device number or video file>\n" <<
 	"\t-d (or --destination) <destination folder>" << "\n" <<
 	"\t-f (or --fps) <frames per second>" << "\n\n" <<
@@ -268,7 +307,22 @@ void showUsage() {
 	cout << "\n"
 	"Keys:" << "\n\n" <<
 	"\tq\tQuit\n" <<
-	"\tSpace\tStart Recording/Start Tracker Labeling\n" <<
+	"\tSpace\tStart Recording/Start Tracker Labeling/Revise Label\n" <<
+	"\tc\tClassification 'car'\n" <<
+	"\tp\tClassification 'person'\n" <<
+	"\th\tClassification 'child'\n" <<
+	"\tarrow up\tClassification 'forward'\n" <<
+	"\tarrow right\tClassification 'right'\n" <<
+	"\tarrow down\tClassification 'backward'\n" <<
+	"\tarrow left\tClassification 'left'\n" <<
+	"\t1-9\tSelect a Tracker\n\n";
+}
+
+void showUsageRevision() {
+	cout << "\n"
+	"Keys:" << "\n\n" <<
+	"\tq\tQuit\n" <<
+	"\tSpace\tStart Recording/Start Tracker Labeling/Revise Label\n" <<
 	"\tc\tClassification 'car'\n" <<
 	"\tp\tClassification 'person'\n" <<
 	"\th\tClassification 'child'\n" <<
@@ -285,7 +339,7 @@ void searchVideoCaptures() {
 	for (i = 0; i < 5000; i++){
 		capture = VideoCapture(i);
 		if (capture.isOpened())
-			cout << "Device found with device number : " << i << endl;
+			cout << "device found with device number : " << i << endl;
 		capture.release();
 	}
 	cout << "finished at id : " << i << endl;
@@ -303,7 +357,7 @@ int parseArgs(int argc, char* argv[]){
 
 	// DEFAULT setting
 	mode = LABEL_ONLY;
-	source = "0";
+	capSource = "0";
 	destination = "Storage";
 	fps = 60;
 
@@ -322,13 +376,15 @@ int parseArgs(int argc, char* argv[]){
 				mode = FPS_TEST;
 			} else if (string(argv[i + 1]) == "listdevices") {
 				mode = LIST_DEVICES;
+			} else if (string(argv[i + 1]) == "reviselabels"){
+				mode = REVISE_LABELS;
 			} else {
 				showCommandlineUsage(argv[0]);
 				return 1;
 			}
 		} else if (string(argv[i]) == "-s" || string(argv[i]) == "--source") {
 			if (i + 1 < argc) {
-				source = string(argv[i + 1]);
+				capSource = string(argv[i + 1]);
 			} else {
 				showCommandlineUsage(argv[0]);
 				return 1;
@@ -352,7 +408,7 @@ int parseArgs(int argc, char* argv[]){
 
 	// get device number, if mode != LABEL_VIDEO
 	if (mode != LABEL_VIDEO) {
-		device = atoi(source.c_str());
+		capDev = atoi(capSource.c_str());
 	}
 	return 0;
 }
@@ -442,7 +498,7 @@ int recordVideo(VideoCapture& capture, string pathFolder, string& pathVideo){
 
 void calcFPS() {
 	// Start default camera
-    VideoCapture video(device);
+    VideoCapture video(capDev);
 		video.set(CV_CAP_PROP_FPS, fps);
     double fps = video.get(CV_CAP_PROP_FPS);
     cout << "Frames per second promise : " << fps << endl;
@@ -482,6 +538,150 @@ void calcFPS() {
     video.release();
 }
 
+vector<string> splitString(string str, char sign) {
+	std::stringstream strstream(str);
+	std::string segment;
+	std::vector<std::string> seglist;
+	while(std::getline(strstream, segment, sign))
+	{
+		 seglist.push_back(segment);
+	}
+	return seglist;
+}
+
+string get_yolo_file(string p){
+	string tmp = splitString(p, '/')[2];
+	return splitString(tmp, '.')[0] + ".txt";
+}
+
+std::string get_file_contents(const string filename) {
+  std::ifstream in(filename, std::ios::in | std::ios::binary);
+  if (in)
+  {
+		string result = (std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>()));
+    return result;
+  }
+  throw(errno);
+}
+
+void safeYOLOLabelsRevision(string pathRGB, string pathYOLOLabel, Mat frame) {
+	ofstream opendistFile;
+	//store labels in distinct files
+	char * dist_files_path = new char[pathYOLOLabel.size() + 1];
+	dist_files_path[pathYOLOLabel.size()] = 0;
+	memcpy(dist_files_path, pathYOLOLabel.c_str(),
+			pathYOLOLabel.size());
+	opendistFile.open(dist_files_path);
+
+	for (unsigned int i = 0; i < objects.size(); i++){
+		if (objects.at(i).active){
+			Rect2d bbox=objects.at(i).rect;
+			Point2d tl = bbox.tl();
+			Point2d br = bbox.br();
+			safePoint(&tl, &frame);
+			safePoint(&br, &frame);
+			Rect2d safeRect(tl, br);
+			// store labels in distinct files for YOLO
+			double xObj, yObj, wObj, hObj;
+			convertToYOLOLabels(frame.cols, frame.rows, tl.x, tl.y, br.x, br.y, xObj, yObj, wObj, hObj);
+			// printf("Pixel: %f %f %f %f",tl.x, tl.y, br.x, br.y);
+			// cout << "Gespeichert: " << xObj << " " << yObj << " " << wObj << " " << hObj << endl;
+			// <filename> <classname> <relative middle.x> <relative middle.y> <relative width> <relative height>
+			opendistFile << objects.at(i).classification << objects.at(i).direction << " " << xObj << " " << yObj << " " << wObj << " " << hObj << endl;
+		}
+	}
+
+	opendistFile.close();
+}
+
+void setObjectClassification(ObjectRect & obj, string classification) {
+	string classPart = classification;
+	classPart = replaceString(classPart, "forward", "");
+  // cout << "in setObj" << endl;
+	classPart = replaceString(classPart, "right", "");
+	classPart = replaceString(classPart, "backward", "");
+	classPart = replaceString(classPart, "left", "");
+	obj.classification = classPart;
+	string directionPart = classification;
+	directionPart = replaceString(directionPart, "car", "");
+	directionPart = replaceString(directionPart, "person", "");
+	directionPart = replaceString(directionPart, "child", "");
+	obj.direction = directionPart;
+}
+
+void reviseLabels(const string p) {
+	double xObj, yObj, wObj, hObj, xtl, ytl, xbr, ybr;
+	int fileIndex = 0;
+	int key = -1;
+	Mat image;
+	const path pathRGB(p + "/RGB");
+	const path pathYOLO(p + "/YOLO_Labels");
+	int cntFiles = std::count_if(
+        directory_iterator(pathRGB),
+        directory_iterator(),
+        static_cast<bool(*)(const path&)>(is_regular_file) );
+	vector<string> files;
+	directory_iterator it{pathRGB};
+	while (it != directory_iterator{}){
+		files += (*it++).path().string();
+	}
+	string_sort(files.begin(), files.end());
+	namedWindow(windowName);
+	setMouseCallback(windowName, mouseHandle, &image);
+	init_ObjectRects();
+	while (true) {
+		selectedRect = 1;
+		// objects.clear();
+		resetObjects();
+		// init_ObjectRects();
+		image = imread(files[fileIndex],CV_LOAD_IMAGE_COLOR);
+		// cout << get_file_contents(p + "/YOLO_Labels/" + get_yolo_file(files[fileIndex])) << endl;
+		string yoloString = get_file_contents(p + "/YOLO_Labels/" + get_yolo_file(files[fileIndex]));
+		yoloString = replaceString(yoloString, "\n", " ");
+		vector<string> yoloValues = splitString(yoloString, ' ');
+		unsigned int i = 0;
+		unsigned int obj = 0;
+		while (i <= yoloValues.size() - 1){
+			setObjectClassification(objects.at(obj), yoloValues[i++]);
+			// cout << objects.at(obj).classification << " " << objects.at(obj).direction << endl;
+			xObj = boost::lexical_cast<double>(yoloValues[i++]);
+			// cout << xObj << endl;
+			yObj = boost::lexical_cast<double>(yoloValues[i++]);
+			// cout << yObj << endl;
+			wObj = boost::lexical_cast<double>(yoloValues[i++]);
+			// cout << wObj << endl;
+			hObj = boost::lexical_cast<double>(yoloValues[i++]);
+			// cout << hObj << endl;
+			convertFromYOLOLabels(xObj, yObj, wObj, hObj, image.cols, image.rows, xtl, ytl, xbr, ybr);
+			objects.at(obj).rect = Rect2d(Point2d(xtl, ytl), Point2d(xbr, ybr));
+			objects.at(obj).active = true;
+			if (obj == 0)
+				objects.at(obj).selected = true;
+			else
+				objects.at(obj).selected = false;
+			obj++;
+		}
+		bool next = false;
+		while(!next){
+			image = imread(files[fileIndex],CV_LOAD_IMAGE_COLOR);
+			draw_ObjectRects(image);
+			imshow(windowName, image);
+			key = waitKey(10);
+			if (key == '+' && fileIndex + 1 < cntFiles) {
+				fileIndex++;
+				next = true;
+			} else if (key == '-' && fileIndex - 1 >= 0) {
+				fileIndex--;
+				next = true;
+			} else if (key == 32) {
+				safeYOLOLabelsRevision(files[fileIndex], p + "/YOLO_Labels/" + get_yolo_file(files[fileIndex]), image);
+			} else if (key == 'q')
+				return;
+			else key_handle(key);
+		}
+	}
+}
+
 int main(int argc, char* argv[]) {
 
 	if (parseArgs(argc, argv) == 1) {
@@ -493,6 +693,10 @@ int main(int argc, char* argv[]) {
 		return 0;
 	} else if (mode == LIST_DEVICES) {
 		searchVideoCaptures();
+		return 0;
+	} else if (mode == REVISE_LABELS){
+		showUsage();
+		reviseLabels(destination);
 		return 0;
 	}
 
@@ -534,9 +738,9 @@ int main(int argc, char* argv[]) {
 
 	// Init VideoCapture
 	if (mode != LABEL_VIDEO){
-		capture = VideoCapture(device);
+		capture = VideoCapture(capDev);
 	} else {
-		capture = VideoCapture(source);
+		capture = VideoCapture(capSource);
 	}
 	if (!capture.isOpened()) {
 		printf("No video source!\n");
@@ -546,12 +750,12 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (mode == RECORD_ONLY || mode == RECORD_AND_LABEL){
-		int retval = recordVideo(capture, pathSuper, source);
+		int retval = recordVideo(capture, pathSuper, capSource);
 		capture.release();
 		if (mode == RECORD_ONLY || retval == 1) {
 			return 0;
 		}
-		capture = VideoCapture(source);
+		capture = VideoCapture(capSource);
 	}
 
 	createSubFolder(pathRGB, pathYOLOLabel);
@@ -590,6 +794,7 @@ int main(int argc, char* argv[]) {
 			} else if (key == 'q') {
 				openFile.close();
 				capture.release();
+				cvDestroyAllWindows();
 				return 0;
 			} else {
 				key_handle(key);
@@ -612,7 +817,7 @@ int main(int argc, char* argv[]) {
 			// save image file
 			string currentDate = currentDateToString();
 			if (safeToFiles){
-				string imageFileName = format("%simage-%d-", path_RGB, image_counter) + currentDate + ".JPEG";
+				string imageFileName = format("%simage", path_RGB) + "-" + currentDate + "-" + format("%04d",image_counter) + ".JPEG";
 				imwrite(imageFileName, frame);
 			}
 
@@ -620,8 +825,7 @@ int main(int argc, char* argv[]) {
 			if (safeToFiles){
 				if (YOLOLabels) {
 					//store labels in distinct files
-					const string distFilesPath = format("%simage-%d-",
-							path_Label, image_counter) + currentDate + ".txt";
+					const string distFilesPath = format("%simage", path_Label) + "-" + currentDate + "-" + format("%04d",image_counter) + ".txt";
 					char * dist_files_path = new char[distFilesPath.size() + 1];
 					dist_files_path[distFilesPath.size()] = 0;
 					memcpy(dist_files_path, distFilesPath.c_str(),
@@ -644,7 +848,7 @@ int main(int argc, char* argv[]) {
 
 				if (safeToFiles) {
 					// <filename> <classname> <middle.x> <middle.y> <object width> <object height> <image width> <image height>
-					string imageFileName = format("image-%d-", image_counter) + currentDate + ".JPEG";
+					string imageFileName = "image-" + currentDate + "-" + format("%04d",image_counter) + ".JPEG";
 					openFile << imageFileName << " "
 					<< objects.at(j).classification << objects.at(j).direction << " " << (int)((br.x - tl.x) / 2) << " "
 					<< (int)((br.y - tl.y) / 2) << " " << br.x - tl.x << " "
@@ -680,5 +884,8 @@ int main(int argc, char* argv[]) {
 		}
 		startTracking = false;
 	}
+	capture.release();
+	openFile.close();
+	cvDestroyAllWindows();
 	return 0;
 }
