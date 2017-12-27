@@ -285,7 +285,7 @@ void showCommandlineUsage(string name) {
 	cerr << "\n"
 	"Usage:" << "\n\n" <<
 	"sam_sampler" << "\n" <<
-	"\t-m (or --mode) <recordonly|labelonly|labelvideo|recordandlabel|fpstest|listcapDevs>\n" <<
+	"\t-m (or --mode) <recordonly|labelonly|labelvideo|recordandlabel|fpstest|listdevices>\n" <<
 	"\t-s (or --source) <source: device number or video file>\n" <<
 	"\t-d (or --destination) <destination folder>" << "\n" <<
 	"\t-f (or --fps) <frames per second>" << "\n\n" <<
@@ -349,7 +349,7 @@ int parseArgs(int argc, char* argv[]){
 				mode = RECORD_AND_LABEL;
 			} else if (string(argv[i + 1]) == "fpstest") {
 				mode = FPS_TEST;
-			} else if (string(argv[i + 1]) == "listcapDevs") {
+			} else if (string(argv[i + 1]) == "listdevices") {
 				mode = LIST_DEVICES;
 			} else if (string(argv[i + 1]) == "reviselabels"){
 				mode = REVISE_LABELS;
@@ -381,7 +381,7 @@ int parseArgs(int argc, char* argv[]){
 		}
 	}
 
-	// get capDev number, if mode != LABEL_VIDEO
+	// get device number, if mode != LABEL_VIDEO
 	if (mode != LABEL_VIDEO) {
 		capDev = atoi(capSource.c_str());
 	}
