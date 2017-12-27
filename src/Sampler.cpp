@@ -540,7 +540,13 @@ void calcFPS() {
     video.release();
 }
 
-vector<string> splitString(string str, char sign) {
+/**
+ * Splits a string into pieces and stores them as vector elements.
+ * @param  str  source string
+ * @param  sign separator
+ * @return      vector of strings with separated pieces
+ */
+vector<string> splitString(const string str, const char sign) {
 	std::stringstream strstream(str);
 	std::string segment;
 	std::vector<std::string> seglist;
@@ -551,6 +557,11 @@ vector<string> splitString(string str, char sign) {
 	return seglist;
 }
 
+/**
+ * [get_yolo_file description]
+ * @param  p [description]
+ * @return   [description]
+ */
 string get_yolo_file(string p){
 	string tmp = splitString(p, '/')[2];
 	return splitString(tmp, '.')[0] + ".txt";
@@ -566,7 +577,13 @@ std::string get_file_contents(const string filename) {
   throw(errno);
 }
 
-void safeYOLOLabelsRevision(string pathRGB, string pathYOLOLabel, Mat frame) {
+/**
+ * Saves revised labels in a YOLO label file.
+ *
+ * @param pathYOLOLabel Path to the YOLO label file.
+ * @param frame         Image.
+ */
+void safeYOLOLabelsRevision(string pathYOLOLabel, Mat frame) {
 	ofstream opendistFile;
 	//store labels in distinct files
 	char * dist_files_path = new char[pathYOLOLabel.size() + 1];
@@ -593,10 +610,16 @@ void safeYOLOLabelsRevision(string pathRGB, string pathYOLOLabel, Mat frame) {
 	opendistFile.close();
 }
 
+/**
+ * Set class and direction of a sampler object from a string wich consists of
+ * a merged classification like 'carleft'.
+ *
+ * @param obj            Sampler object.
+ * @param classification Merged classification like 'carleft'.
+ */
 void setObjectClassification(ObjectRect & obj, string classification) {
 	string classPart = classification;
 	classPart = replaceString(classPart, "forward", "");
-  // cout << "in setObj" << endl;
 	classPart = replaceString(classPart, "right", "");
 	classPart = replaceString(classPart, "backward", "");
 	classPart = replaceString(classPart, "left", "");
@@ -608,6 +631,11 @@ void setObjectClassification(ObjectRect & obj, string classification) {
 	obj.direction = directionPart;
 }
 
+/**
+ * Revise labels in a given directory.
+ *
+ * @param p Directory with labeles samples.
+ */
 void reviseLabels(const string p) {
 	double xObj, yObj, wObj, hObj, xtl, ytl, xbr, ybr;
 	int fileIndex = 0;
@@ -673,7 +701,7 @@ void reviseLabels(const string p) {
 				fileIndex--;
 				next = true;
 			} else if (key == 32) {
-				safeYOLOLabelsRevision(files[fileIndex], p + "/YOLO_Labels/" + get_yolo_file(files[fileIndex]), image);
+				safeYOLOLabelsRevision(p + "/YOLO_Labels/" + get_yolo_file(files[fileIndex]), image);
 			} else if (key == 'q')
 				return;
 			else key_handle(key);
