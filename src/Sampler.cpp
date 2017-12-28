@@ -256,11 +256,53 @@ void key_handle(int key){
 		objects.at(selectedRect-1).direction = "backward";
 	} else if (key == 81) {
 		objects.at(selectedRect-1).direction = "left";
+	} else if (key == 'w') {
+		Point2d tl = objects.at(selectedRect-1).rect.tl();
+		Point2d br = objects.at(selectedRect-1).rect.br();
+		tl = Point2d(tl.x, tl.y - 1.0);
+		objects.at(selectedRect-1).rect = Rect2d(tl, br);
+	} else if (key == 's') {
+		Point2d tl = objects.at(selectedRect-1).rect.tl();
+		Point2d br = objects.at(selectedRect-1).rect.br();
+		tl = Point2d(tl.x, tl.y + 1.0);
+		objects.at(selectedRect-1).rect = Rect2d(tl, br);
+	} else if (key == 'i') {
+		Point2d tl = objects.at(selectedRect-1).rect.tl();
+		Point2d br = objects.at(selectedRect-1).rect.br();
+		br = Point2d(br.x, br.y - 1.0);
+		objects.at(selectedRect-1).rect = Rect2d(tl, br);
+	} else if (key == 'k') {
+		Point2d tl = objects.at(selectedRect-1).rect.tl();
+		Point2d br = objects.at(selectedRect-1).rect.br();
+		br = Point2d(br.x, br.y + 1.0);
+		objects.at(selectedRect-1).rect = Rect2d(tl, br);
+	} else if (key == 'a') {
+		Point2d tl = objects.at(selectedRect-1).rect.tl();
+		Point2d br = objects.at(selectedRect-1).rect.br();
+		tl = Point2d(tl.x - 1.0, tl.y);
+		objects.at(selectedRect-1).rect = Rect2d(tl, br);
+	} else if (key == 'd') {
+		Point2d tl = objects.at(selectedRect-1).rect.tl();
+		Point2d br = objects.at(selectedRect-1).rect.br();
+		tl = Point2d(tl.x + 1.0, tl.y);
+		objects.at(selectedRect-1).rect = Rect2d(tl, br);
+	} else if (key == 'j') {
+		Point2d tl = objects.at(selectedRect-1).rect.tl();
+		Point2d br = objects.at(selectedRect-1).rect.br();
+		br = Point2d(br.x - 1.0, br.y);
+		objects.at(selectedRect-1).rect = Rect2d(tl, br);
+	} else if (key == 'l') {
+		Point2d tl = objects.at(selectedRect-1).rect.tl();
+		Point2d br = objects.at(selectedRect-1).rect.br();
+		br = Point2d(br.x + 1.0, br.y);
+		objects.at(selectedRect-1).rect = Rect2d(tl, br);
 	}
 }
 
 /**
- * Hands over rectangels of tagged objects to tracker.
+ * Hands over rectangels of labeled objects to tracker.
+ *
+ * @param frame Image for tracker intitialization.
  */
 void init_tracker(Mat& frame) {
 	tracker = new MultiTrack();
@@ -657,7 +699,6 @@ void reviseLabels(const string p) {
 	setMouseCallback(windowName, mouseHandle, &image);
 	init_ObjectRects();
 	while (true) {
-		selectedRect = 1;
 		// objects.clear();
 		resetObjects();
 		// init_ObjectRects();
@@ -682,12 +723,15 @@ void reviseLabels(const string p) {
 			convertFromYOLOLabels(xObj, yObj, wObj, hObj, image.cols, image.rows, xtl, ytl, xbr, ybr);
 			objects.at(obj).rect = Rect2d(Point2d(xtl, ytl), Point2d(xbr, ybr));
 			objects.at(obj).active = true;
-			if (obj == 0)
-				objects.at(obj).selected = true;
-			else
-				objects.at(obj).selected = false;
+			// if (obj == 0)
+			// 	objects.at(obj).selected = true;
+			// else
+			// 	objects.at(obj).selected = false;
 			obj++;
 		}
+		if (!objects.at(selectedRect -1).active) 
+			selectedRect = 1;
+		objects.at(selectedRect -1).selected = true;
 		bool next = false;
 		while(!next){
 			image = imread(files[fileIndex],CV_LOAD_IMAGE_COLOR);
