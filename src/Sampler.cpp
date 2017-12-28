@@ -179,8 +179,8 @@ void init_ObjectRects(){
 		newObjRect.active = false;
 		newObjRect.selected = false;
 		newObjRect.color = random_color();
-		newObjRect.classification = "unkown";
-		newObjRect.direction = "unkown";
+		newObjRect.classification = "unknown";
+		newObjRect.direction = "unknown";
 		objects.push_back(newObjRect);
 	}
 }
@@ -190,8 +190,8 @@ void resetObjects() {
 		objects.at(i - 1).number = i;
 		objects.at(i - 1).active = false;
 		objects.at(i - 1).selected = false;
-		objects.at(i - 1).classification = "unkown";
-		objects.at(i - 1).direction = "unkown";
+		objects.at(i - 1).classification = "unknown";
+		objects.at(i - 1).direction = "unknown";
 	}
 }
 
@@ -224,7 +224,7 @@ void draw_ObjectRects(Mat& frame) {
 bool all_classes_set(){
 	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it){
 		if ((*it).active){
-			if ((*it).classification == "unkown" || (*it).direction == "unkown"){
+			if ((*it).classification == "unknown" || (*it).direction == "unknown"){
 				classSetError = true;
 				return false;
 			}
@@ -332,8 +332,9 @@ string currentDateToString() {
 
 /**
  * Help message in console.
+ * @param name [description]
  */
-void showCommandlineUsage(string name) {
+void showCommandlineUsage() {
 	cerr << "\n"
 	"Usage:" << "\n\n" <<
 	"sam_sampler" << "\n" <<
@@ -348,33 +349,39 @@ void showCommandlineUsage(string name) {
 void showUsage() {
 	cout << "\n"
 	"Keys:" << "\n\n" <<
-	"\tq\tQuit\n" <<
-	"\tSpace\tStart Recording/Start Tracker Labeling\n" <<
-	"\tc\tClassification 'car'\n" <<
-	"\tp\tClassification 'person'\n" <<
-	"\th\tClassification 'child'\n" <<
+	"\tq\t\tQuit\n" <<
+	"\tSpace\t\tStart Recording/Start Tracker Labeling\n" <<
+	"\tc\t\tClassification 'car'\n" <<
+	"\tp\t\tClassification 'person'\n" <<
+	"\th\t\tClassification 'child'\n" <<
 	"\tarrow up\tClassification 'forward'\n" <<
 	"\tarrow right\tClassification 'right'\n" <<
 	"\tarrow down\tClassification 'backward'\n" <<
 	"\tarrow left\tClassification 'left'\n" <<
-	"\t1-9\tSelect a Tracker\n\n";
+	"\t1-9\t\tSelect a Tracker\n" <<
+	"\tw, d, s, a\tMove top left label point\n" <<
+	"\ti, l, k, j\tMove bottom right label point\n\n" <<
+	"\tDrag and Drop to label an object\n\n";
 }
 
 void showUsageRevision() {
 	cout << "\n"
 	"Keys:" << "\n\n" <<
-	"\tq\tQuit\n" <<
-	"\tSpace\tSave Revision\n" <<
-	"\tc\tClassification 'car'\n" <<
-	"\tp\tClassification 'person'\n" <<
-	"\th\tClassification 'child'\n" <<
+	"\tq\t\tQuit\n" <<
+	"\tSpace\t\tSave Revision\n" <<
+	"\tc\t\tClassification 'car'\n" <<
+	"\tp\t\tClassification 'person'\n" <<
+	"\th\t\tClassification 'child'\n" <<
 	"\tarrow up\tClassification 'forward'\n" <<
 	"\tarrow right\tClassification 'right'\n" <<
 	"\tarrow down\tClassification 'backward'\n" <<
 	"\tarrow left\tClassification 'left'\n" <<
-	"\t1-9\tSelect an Object\n" <<
-	"\t+\tNext Sample\n" <<
-	"\t-\tPrevious Sample\n\n";
+	"\t1-9\t\tSelect an Object\n" <<
+	"\tw, d, s, a\tMove top left label point\n" <<
+	"\ti, l, k, j\tMove bottom right label point\n" <<
+	"\t+\t\tNext Sample\n" <<
+	"\t-\t\tPrevious Sample\n\n" <<
+	"\tDrag and Drop to label an object\n\n";
 }
 
 void searchVideoCaptures() {
@@ -395,7 +402,7 @@ void searchVideoCaptures() {
 int parseArgs(int argc, char* argv[]){
 	//check correct argc
 	if (argc % 2 == 0 || argc > 9){
-		showCommandlineUsage(argv[0]);
+		showCommandlineUsage();
 		return 1;
 	}
 
@@ -423,28 +430,28 @@ int parseArgs(int argc, char* argv[]){
 			} else if (string(argv[i + 1]) == "reviselabels"){
 				mode = REVISE_LABELS;
 			} else {
-				showCommandlineUsage(argv[0]);
+				showCommandlineUsage();
 				return 1;
 			}
 		} else if (string(argv[i]) == "-s" || string(argv[i]) == "--source") {
 			if (i + 1 < argc) {
 				capSource = string(argv[i + 1]);
 			} else {
-				showCommandlineUsage(argv[0]);
+				showCommandlineUsage();
 				return 1;
 			}
 		} else if (string(argv[i]) == "-d" || string(argv[i]) == "--destination") {
 			if (i + 1 < argc) {
 				destination = string(argv[i + 1]);
 			} else {
-				showCommandlineUsage(argv[0]);
+				showCommandlineUsage();
 				return 1;
 			}
 		} else if (string(argv[i]) == "-f" || string(argv[i]) == "--fps") {
 			if (i + 1 < argc) {
 				fps = atoi(argv[i + 1]);
 			} else {
-				showCommandlineUsage(argv[0]);
+				showCommandlineUsage();
 				return 1;
 			}
 		}
@@ -729,7 +736,7 @@ void reviseLabels(const string p) {
 			// 	objects.at(obj).selected = false;
 			obj++;
 		}
-		if (!objects.at(selectedRect -1).active) 
+		if (!objects.at(selectedRect -1).active)
 			selectedRect = 1;
 		objects.at(selectedRect -1).selected = true;
 		bool next = false;
