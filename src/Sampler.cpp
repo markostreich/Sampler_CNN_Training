@@ -350,7 +350,7 @@ void showUsage() {
 	cout << "\n"
 	"Keys:" << "\n\n" <<
 	"\tq\t\tQuit\n" <<
-	"\tSpace\t\tStart Recording/Start Tracker Labeling\n" <<
+	"\tSpace\t\tStart/Pause Tracker Labeling\n" <<
 	"\tc\t\tClassification 'car'\n" <<
 	"\tp\t\tClassification 'person'\n" <<
 	"\th\t\tClassification 'child'\n" <<
@@ -362,6 +362,13 @@ void showUsage() {
 	"\tw, d, s, a\tMove top left label point\n" <<
 	"\ti, l, k, j\tMove bottom right label point\n\n" <<
 	"\tDrag and Drop to label an object\n\n";
+}
+
+void showUsageRecording() {
+	cout << "\n"
+	"Keys:" << "\n\n" <<
+	"\tq\t\tQuit\n" <<
+	"\tSpace\t\tStart/Stop Recording\n\n";
 }
 
 void showUsageRevision() {
@@ -778,9 +785,6 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-	// print key description in commandline
-	showUsage();
-
 	// path to the folder where we save the photos
 	const string pathSuper = destination + "/";
 	const string pathRGB = destination + "/RGB/";
@@ -828,6 +832,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (mode == RECORD_ONLY || mode == RECORD_AND_LABEL){
+		showUsageRecording();
 		int retval = recordVideo(capture, pathSuper, capSource);
 		capture.release();
 		if (mode == RECORD_ONLY || retval == 1) {
@@ -835,6 +840,9 @@ int main(int argc, char* argv[]) {
 		}
 		capture = VideoCapture(capSource);
 	}
+
+	// print key description in commandline
+	showUsage();
 
 	createSubFolder(pathRGB, pathYOLOLabel);
 
