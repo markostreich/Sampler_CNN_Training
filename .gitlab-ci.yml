@@ -25,7 +25,7 @@ BuildAndTest:
     - "./ci_sonar_coverage.sh"
   artifacts:
     paths:
-     - bin/
+#     - bin/
 #    - _build_user/
 #    - _install/
     - log/
