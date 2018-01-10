@@ -1,5 +1,5 @@
 stages:
-#  - build_test_check
+  - build_test_check
   - sonar_scan
 
 
