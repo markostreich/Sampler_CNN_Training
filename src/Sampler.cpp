@@ -53,7 +53,7 @@ int capDev = 0;
 bool YOLOLabels = true;
 
 // Number of the first image
-const int start_number = 0;
+int start_number = 0;
 // Number of the last image, currently unused
 const int last_number = 5000;
 // mouse click and release points
@@ -461,6 +461,13 @@ int parseArgs(int argc, char* argv[]){
 				showCommandlineUsage();
 				return 1;
 			}
+		} else if (string(argv[i]) == "-n" || string(argv[i]) == "--nextnumber") {
+			if (i + 1 < argc) {
+				start_number = atoi(argv[i + 1]);
+			} else {
+				showCommandlineUsage();
+				return 1;
+			}
 		}
 	}
 
@@ -750,6 +757,7 @@ void reviseLabels(const string p) {
 		while(!next){
 			image = imread(files[fileIndex],CV_LOAD_IMAGE_COLOR);
 			draw_ObjectRects(image);
+			putText(image, get_yolo_file(files[fileIndex]), Point(10, 450), 1, 1, Scalar(0,255,255), 1);
 			imshow(windowName, image);
 			key = waitKey(10);
 			if (key == '+' && fileIndex + 1 < cntFiles) {
@@ -858,6 +866,12 @@ int main(int argc, char* argv[]) {
 	int key = 0;
 	bool doCapturing = true;
 	int countFrames = 0;
+	if (start_number != 0){
+		image_counter = start_number;
+		for (int i = 0; i < start_number; ++i){
+			capture.read(blankFrame);
+		}
+	}
 	while (1) {
 		while (!startTracking) {
 			if (doCapturing){
