@@ -14,22 +14,22 @@ stages:
 #
 #       gcov is executed via gcovr (Python required), see http://gcovr.com/guide.html
 #
-BuildAndTest:
-  stage: build_test_check
-  tags:
-    - linux
-  script:
-    - "make clean" 
-    - "make --profiling" # How can we pass profiling to make
-    - "./ci_sonar_runtests.sh"
-    - "./ci_sonar_coverage.sh"
-  artifacts:
-    paths:
+#BuildAndTest:
+#  stage: build_test_check
+#  tags:
+#    - linux
+#  script:
+#    - "make clean" 
+#    - "make ENABLE_PROFILING=True" # How can we pass profiling to make
+#    - "./ci_sonar_runtests.sh"
+#    - "./ci_sonar_coverage.sh"
+#  artifacts:
+#    paths:
 #     - bin/
 #    - _build_user/
 #    - _install/
-    - log/
-    expire_in: 2 weeks
+#    - log/
+#    expire_in: 2 weeks
 
 # now the different source scanning jobs follow (which do not require build artifacts)
 
