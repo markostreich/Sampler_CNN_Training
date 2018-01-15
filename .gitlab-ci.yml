@@ -1,0 +1,88 @@
+stages:
+  - build_test_check
+  - sonar_scan
+
+
+# This job builds the project, executes the tests and runs gcov to create test coverage statistics
+#
+# Note: Building (creates .gcno files), running the tests (create .gcda files) and gcov
+#       MUST be in one job since the .gcno and .gcda files must be created by exactly
+#       the same compiler and compiler version. Therfore, we must guarantee (by having them
+#       in the same job) that they are executed on the same gitlab runner. Otherwise, we
+#       have a small (but non neglectable) risk that gcov will fail and no coverage info is
+#       available if we use parallel runners.
+#
+#       gcov is executed via gcovr (Python required), see http://gcovr.com/guide.html
+#
+#BuildAndTest:
+#  stage: build_test_check
+#  tags:
+#    - linux
+#  script:
+#    - "make clean" 
+#    - "make ENABLE_PROFILING=True" # How can we pass profiling to make
+#    - "./ci_sonar_runtests.sh"
+#    - "./ci_sonar_coverage.sh"
+#  artifacts:
+#    paths:
+#     - bin/
+#    - _build_user/
+#    - _install/
+#    - log/
+#    expire_in: 2 weeks
+
+# now the different source scanning jobs follow (which do not require build artifacts)
+
+
+# Cppcheck (http://cppcheck.sourceforge.net/)
+Cppcheck:
+  stage: build_test_check
+  tags:
+    - linux
+  script: "./ci_sonar_cppcheck.sh"
+  artifacts:
+    paths:
+    - log/
+    expire_in: 8 weeks
+
+# Vera++ (https://bitbucket.org/verateam/vera/wiki/Home)
+Vera:
+  stage: build_test_check
+  tags:
+    - linux
+  script: "./ci_sonar_vera.sh"
+  artifacts:
+    paths:
+    - log/
+    expire_in: 8 weeks
+
+# Rough Auditing Tool for Security (RATS)
+# https://security.web.cern.ch/security/recommendations/en/codetools/rats.shtml
+# https://github.com/andrew-d/rough-auditing-tool-for-security
+Rats:
+  stage: build_test_check
+  tags:
+    - linux
+  script: "./ci_sonar_rats.sh"
+  artifacts:
+    paths:
+    - log/
+    expire_in: 8 weeks
+
+
+# finally, the results must be scanned and uploaded to the sonar server
+Sonar:
+  stage: sonar_scan
+  tags:
+    - linux
+    - sonar
+  script: "./ci_sonar_scan.sh"
+  dependencies:
+#    - BuildAndTest
+    - Cppcheck
+    - Vera
+    - Rats
+  artifacts:
+    paths:
+    - log/
+    expire_in: 1 year
