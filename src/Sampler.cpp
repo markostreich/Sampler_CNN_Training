@@ -38,41 +38,59 @@ using namespace boost::assign;
 using namespace boost::sort::spreadsort;
 using namespace boost::iostreams;
 
+// debugging
 const bool safeToFiles = true;
-
 bool debug = false;
-const int linesize = 1;
+bool YOLOLabels = true;
+
+const int rect_linesize = 1;
+
 // name of the main video window
 const string windowName = "SAM Sampler";
 
+//Folder name for session results
 string destination;
 
+// Video source
 string capSource = "";
 int capDev = 0;
-
-bool YOLOLabels = true;
 
 // Number of the first image
 int start_number = 0;
 // Number of the last image, currently unused
 const int last_number = 5000;
+
 // mouse click and release points
 Point2d initialClickPoint, currentSecondPoint;
+
+// Labeled objects
 vector<ObjectRect> objects;
+
+// currently selected object
 short selectedRect = 1;
 
 // mouse states
 bool mouseIsDragging, mouseMove, drawRect;
 
-
+// KCF-Tracker
 Ptr<MultiTrack> tracker;
 
+//Sampler mode
 int mode;
+
+//FPS
 int fps;
 
+//Check if all labeled objects start tracking with a class and a direction
 bool classSetError = false;
-/*
- * handler of mouse events in the main window
+
+/**
+ * Handler of mouse events in the main window.
+ * @param event [description]
+ * @param x     [description]
+ * @param y     [description]
+ * @param flags [description]
+ * @param param [description]
  */
 void mouseHandle(int event, int x, int y, int flags, void* param) {
 	// user has pushed left button
@@ -96,11 +114,6 @@ void mouseHandle(int event, int x, int y, int flags, void* param) {
 		objects.at(selectedRect-1).rect = Rect2d(initialClickPoint, currentSecondPoint);
 		objects.at(selectedRect-1).active = true;
 		objects.at(selectedRect-1).selected = true;
-		// if (debug){
-		// 	Rect2d rect = objects.at(selectedRect-1).rect;
-		// 	// cout << format("%f %f %f %f", rect.tl().x,rect.tl().y,rect.br().x,rect.br().y) << endl;
-		// }
-		// bbox = Rect2d(initialClickPoint, currentSecondPoint);
 		drawRect = true;
 	}
 	// user has released left button
@@ -124,7 +137,11 @@ void mouseHandle(int event, int x, int y, int flags, void* param) {
 	}
 }
 
-/* Prevent Point from leaving the frame */
+/**
+ * Prevent Point from leaving the frame.
+ * @param point [description]
+ * @param frame [description]
+ */
 void safePoint(Point2d * point, Mat * frame) {
 	if (point->x < 0)
 		point->x = 0;
@@ -136,6 +153,19 @@ void safePoint(Point2d * point, Mat * frame) {
 		point->y = frame->rows - 1;
 }
 
+/**
+ * Convert OpenCV Rect data to Yolo labels
+ * @param wFrame [description]
+ * @param hFrame [description]
+ * @param xtl    [description]
+ * @param ytl    [description]
+ * @param xbr    [description]
+ * @param ybr    [description]
+ * @param xObj   [description]
+ * @param yObj   [description]
+ * @param wObj   [description]
+ * @param hObj   [description]
+ */
 void convertToYOLOLabels(int wFrame, int hFrame, double xtl, double ytl,
 		double xbr, double ybr, double &xObj, double &yObj, double &wObj,
 		double &hObj) {
@@ -151,6 +181,19 @@ void convertToYOLOLabels(int wFrame, int hFrame, double xtl, double ytl,
 	hObj = hObj * dh;
 }
 
+/**
+ * Convert YOLO Labels to OpenCV Rect data
+ * @param xObj   [description]
+ * @param yObj   [description]
+ * @param wObj   [description]
+ * @param hObj   [description]
+ * @param wFrame [description]
+ * @param hFrame [description]
+ * @param xtl    [description]
+ * @param ytl    [description]
+ * @param xbr    [description]
+ * @param ybr    [description]
+ */
 void convertFromYOLOLabels(double xObj, double yObj, double wObj, double hObj,
 	int wFrame, int hFrame, double &xtl, double &ytl, double &xbr, double &ybr) {
 	double dw = 1.0 / (double) wFrame;
@@ -166,11 +209,18 @@ void convertFromYOLOLabels(double xObj, double yObj, double wObj, double hObj,
 	// printf("Errechnet: xtl:%f ytl:%f xbr:%f ybr:%f\n", xtl, ytl, xbr, ybr);
 }
 
+/**
+ * Random Color
+ * @return random color
+ */
 CvScalar random_color() {
 	int color = rand();
 	return CV_RGB(color&255, (color>>8)&255, (color>>16)&255);
 }
 
+/**
+ * Initialize nine objects for labeling and tracking.
+ */
 void init_ObjectRects(){
 	srand(time(0));
 	for (int i = 1; i <= 9; i++){
@@ -185,6 +235,9 @@ void init_ObjectRects(){
 	}
 }
 
+/**
+ * Reset objects to defaults.
+ */
 void resetObjects() {
 	for (int i = 1; i <= 9; i++){
 		objects.at(i - 1).number = i;
@@ -197,7 +250,7 @@ void resetObjects() {
 
 /**
  * Draws rectangles of tagged objects into a given frame.
- *
+ * @param frame [description]
  */
 void draw_ObjectRects(Mat& frame) {
 	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it) {
@@ -207,7 +260,7 @@ void draw_ObjectRects(Mat& frame) {
 				const string str = (*it).classification  + " " + (*it).direction;
 				putText(frame, str, Point(100, 30), 1, 2, (*it).color, 2);
 			} else {
-				rectangle(frame, (*it).rect, (*it).color, linesize, 1);
+				rectangle(frame, (*it).rect, (*it).color, rect_linesize, 1);
 			}
 		}
 	}
@@ -220,6 +273,7 @@ void draw_ObjectRects(Mat& frame) {
 /**
  * Checks if all tagged objects are classified.
  * Labeling will not start if it returns false.
+ * @return [description]
  */
 bool all_classes_set(){
 	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it){
@@ -234,6 +288,10 @@ bool all_classes_set(){
 	return true;
 }
 
+/**
+ * Handle keys.
+ * @param key key value
+ */
 void key_handle(int key){
 	if (debug){
 		// cout << "key pressed: " << key << endl;
@@ -346,6 +404,9 @@ void showCommandlineUsage() {
 	"sam_sampler" << " -m labelonly -s 0 -d Storage -f 60\n\n";
 }
 
+/**
+ * [showUsage description]
+ */
 void showUsage() {
 	cout << "\n"
 	"Keys:" << "\n\n" <<
@@ -952,7 +1013,7 @@ int main(int argc, char* argv[]) {
 
 					}
 				}
-				rectangle(frame, objects.at(j).rect, objects.at(j).color, linesize, 1);
+				rectangle(frame, objects.at(j).rect, objects.at(j).color, rect_linesize, 1);
 			}
 
 			opendistFile.close();
