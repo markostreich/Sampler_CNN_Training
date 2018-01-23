@@ -697,7 +697,7 @@ void setObjectClassification(ObjectRect & obj, string classification) {
 /**
  * Revise labels in a given directory.
  *
- * @param p Directory with labeles samples.
+ * @param p Directory with labels and samples.
  */
 void reviseLabels(const string p) {
 	double xObj, yObj, wObj, hObj, xtl, ytl, xbr, ybr;
@@ -720,11 +720,8 @@ void reviseLabels(const string p) {
 	setMouseCallback(windowName, mouseHandle, &image);
 	init_ObjectRects();
 	while (true) {
-		// objects.clear();
 		resetObjects();
-		// init_ObjectRects();
 		image = imread(files[fileIndex],CV_LOAD_IMAGE_COLOR);
-		// cout << get_file_contents(p + "/YOLO_Labels/" + get_yolo_file(files[fileIndex])) << endl;
 		string yoloString = get_file_contents(p + "/YOLO_Labels/" + get_yolo_file(files[fileIndex]));
 		yoloString = replaceString(yoloString, "\n", " ");
 		vector<string> yoloValues = splitString(yoloString, ' ');
@@ -732,22 +729,13 @@ void reviseLabels(const string p) {
 		unsigned int obj = 0;
 		while (i <= yoloValues.size() - 1){
 			setObjectClassification(objects.at(obj), yoloValues[i++]);
-			// cout << objects.at(obj).classification << " " << objects.at(obj).direction << endl;
 			xObj = boost::lexical_cast<double>(yoloValues[i++]);
-			// cout << xObj << endl;
 			yObj = boost::lexical_cast<double>(yoloValues[i++]);
-			// cout << yObj << endl;
 			wObj = boost::lexical_cast<double>(yoloValues[i++]);
-			// cout << wObj << endl;
 			hObj = boost::lexical_cast<double>(yoloValues[i++]);
-			// cout << hObj << endl;
 			convertFromYOLOLabels(xObj, yObj, wObj, hObj, image.cols, image.rows, xtl, ytl, xbr, ybr);
 			objects.at(obj).rect = Rect2d(Point2d(xtl, ytl), Point2d(xbr, ybr));
 			objects.at(obj).active = true;
-			// if (obj == 0)
-			// 	objects.at(obj).selected = true;
-			// else
-			// 	objects.at(obj).selected = false;
 			obj++;
 		}
 		if (!objects.at(selectedRect -1).active)
