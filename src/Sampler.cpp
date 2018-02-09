@@ -788,7 +788,7 @@ void reviseLabels(const string p) {
 		vector<string> yoloValues = splitString(yoloString, ' ');
 		unsigned int i = 0;
 		unsigned int obj = 0;
-		while (i <= yoloValues.size() - 1){
+		while (i <= yoloValues.size() - 1 && yoloValues.size() >= 5){
 			setObjectClassification(objects.at(obj), yoloValues[i++]);
 			xObj = boost::lexical_cast<double>(yoloValues[i++]);
 			yObj = boost::lexical_cast<double>(yoloValues[i++]);
