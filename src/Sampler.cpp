@@ -252,9 +252,6 @@ bool all_classes_set(){
 }
 
 void key_handle(int key){
-	if (debug){
-		// cout << "key pressed: " << key << endl;
-	}
 	if (key >= 49 && key <= 57) {
 		objects.at(selectedRect-1).selected = false;
 		selectedRect = key - 48;
@@ -648,11 +645,15 @@ vector<string> splitString(const string str, const char sign) {
  * @return   [description]
  */
 string get_yolo_file(string p){
-	
 	string tmp = splitString(p, '/').back();
 	return splitString(tmp, '.')[0] + ".txt";
 }
 
+/**
+ * [get_file_contents description]
+ * @param  filename [description]
+ * @return          [description]
+ */
 std::string get_file_contents(const string filename) {
   std::ifstream in(filename, std::ios::in | std::ios::binary);
   if (in)
@@ -755,7 +756,7 @@ void reviseLabels(const string p) {
 		vector<string> yoloValues = splitString(yoloString, ' ');
 		unsigned int i = 0;
 		unsigned int obj = 0;
-		while (i <= yoloValues.size() - 1){
+		while (i <= yoloValues.size() - 1 && yoloValues.size() >= 5){
 			setObjectClassification(objects.at(obj), yoloValues[i++]);
 			xObj = boost::lexical_cast<double>(yoloValues[i++]);
 			yObj = boost::lexical_cast<double>(yoloValues[i++]);
@@ -773,7 +774,7 @@ void reviseLabels(const string p) {
 		while(!next){
 			image = imread(files[fileIndex],CV_LOAD_IMAGE_COLOR);
 			draw_ObjectRects(image);
-			putText(image, get_yolo_file(files[fileIndex]), Point(10, 450), 1, 1, Scalar(0,255,255), 1);
+			putText(image, get_yolo_file(files[fileIndex]), Point(10, 470), 1, 1, Scalar(0,255,255), 1);
 			imshow(windowName, image);
 			key = waitKey(10);
 			if (key == '+' && fileIndex + 1 < cntFiles) {
@@ -783,7 +784,13 @@ void reviseLabels(const string p) {
 				fileIndex--;
 				next = true;
 			} else if (key == 32) {
-				safeYOLOLabelsRevision(p + "/YOLO_Labels/" + get_yolo_file(files[fileIndex]), image);
+				if (all_classes_set())
+					safeYOLOLabelsRevision(p + "/YOLO_Labels/" + get_yolo_file(files[fileIndex]), image);
+				else {
+					const string str = "Failure: Unset classification";
+					putText(image, str, Point(95, 450), 1, 2, Scalar(0,0,255), 2);
+				}
+
 			} else if (key == 'q')
 				return;
 			else key_handle(key);
