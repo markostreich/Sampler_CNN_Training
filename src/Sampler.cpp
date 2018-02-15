@@ -251,6 +251,10 @@ bool all_classes_set(){
 	return true;
 }
 
+/**
+ * Key handle in running label prcess.
+ * @param key Last key pressed.
+ */
 void key_handle(int key){
 	if (key >= 49 && key <= 57) {
 		objects.at(selectedRect-1).selected = false;
@@ -346,7 +350,6 @@ string currentDateToString() {
 
 /**
  * Help message in console.
- * @param name [description]
  */
 void showCommandlineUsage() {
 	cerr << "\n"
@@ -356,10 +359,14 @@ void showCommandlineUsage() {
 	"\t-s (or --source) <source: device number or video file>\n" <<
 	"\t-d (or --destination) <destination folder>" << "\n" <<
 	"\t-f (or --fps) <frames per second>" << "\n\n" <<
+	"\t-n (or --nextnumber) <image number to start labeling with in mode labelvideo>" << "\n\n" <<
 	"Defaults:" << "\n\n" <<
 	"sam_sampler" << " -m labelonly -s 0 -d Storage -f 60\n\n";
 }
 
+/**
+ * Help message in label process.
+ */
 void showUsage() {
 	cout << "\n"
 	"Keys:" << "\n\n" <<
@@ -378,6 +385,9 @@ void showUsage() {
 	"\tDrag and Drop to label an object\n\n";
 }
 
+/**
+ * Help message in recording process.
+ */
 void showUsageRecording() {
 	cout << "\n"
 	"Keys:" << "\n\n" <<
@@ -385,6 +395,9 @@ void showUsageRecording() {
 	"\tSpace\t\tStart/Stop Recording\n\n";
 }
 
+/**
+ * Help message in label revision process.
+ */
 void showUsageRevision() {
 	cout << "\n"
 	"Keys:" << "\n\n" <<
@@ -405,6 +418,9 @@ void showUsageRevision() {
 	"\tDrag and Drop to label an object\n\n";
 }
 
+/**
+ * Searches for opencv video captures in 5000 possible capture ids.
+ */
 void searchVideoCaptures() {
 	VideoCapture capture;
 	int i;
@@ -419,6 +435,9 @@ void searchVideoCaptures() {
 
 /**
  * Parses command line arguments.
+ * @param  argc amount command line arguments
+ * @param  argv command line arguments
+ * @return      error value
  */
 int parseArgs(int argc, char* argv[]){
 	//check correct argc
@@ -497,6 +516,10 @@ int parseArgs(int argc, char* argv[]){
 	return 0;
 }
 
+/**
+ * Creates folder if stated with option -d in the command line.
+ * @param pathSuper path to new folder
+ */
 void createSuperFolder(const string pathSuper) {
 	// Create Super Folder
 	string command = "mkdir " + pathSuper + " > /dev/null 2>&1";
@@ -507,6 +530,11 @@ void createSuperFolder(const string pathSuper) {
 		system(com_char);
 }
 
+/**
+ * Creates subfolder 'RGB' and 'YOLO_Labels'.
+ * @param pathRGB       path to folder RGB
+ * @param pathYOLOLabel path to folder YOLO_Labels
+ */
 void createSubFolder(const string pathRGB, const string pathYOLOLabel) {
 
 	// Create Image Folder
@@ -526,6 +554,13 @@ void createSubFolder(const string pathRGB, const string pathYOLOLabel) {
 		system(com_char);
 }
 
+/**
+ * Records a video for later sampling.
+ * @param  capture    opencv video capture
+ * @param  pathFolder destination folder for the video
+ * @param  pathVideo  path to new video (out)
+ * @return            error code
+ */
 int recordVideo(VideoCapture& capture, string pathFolder, string& pathVideo){
 	Mat frame;
 	Size size = Size((int) capture.get(CV_CAP_PROP_FRAME_WIDTH),    // Acquire input size
@@ -580,6 +615,9 @@ int recordVideo(VideoCapture& capture, string pathFolder, string& pathVideo){
 	return 0;
 }
 
+/**
+ * Makes a Frames per Second test.
+ */
 void calcFPS() {
 	// Start default camera
     VideoCapture video(capDev);
@@ -640,9 +678,9 @@ vector<string> splitString(const string str, const char sign) {
 }
 
 /**
- * [get_yolo_file description]
- * @param  p [description]
- * @return   [description]
+ * Returns a file name with YOLO labels.
+ * @param  p path to YOLO file.
+ * @return   name of the YOLO file
  */
 string get_yolo_file(string p){
 	string tmp = splitString(p, '/').back();
@@ -650,9 +688,9 @@ string get_yolo_file(string p){
 }
 
 /**
- * [get_file_contents description]
- * @param  filename [description]
- * @return          [description]
+ * Returns YOLO label file content.
+ * @param  filename file name
+ * @return          YOLO label file content
  */
 std::string get_file_contents(const string filename) {
   std::ifstream in(filename, std::ios::in | std::ios::binary);
