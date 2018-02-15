@@ -83,8 +83,13 @@ int fps;
 //Check if all labeled objects start tracking with a class and a direction
 bool classSetError = false;
 
-/*
- * handler of mouse events in the main window
+/**
+ * Handler of mouse events in the main window.
+ * @param event [description]
+ * @param x     [description]
+ * @param y     [description]
+ * @param flags [description]
+ * @param param [description]
  */
 void mouseHandle(int event, int x, int y, int flags, void* param) {
 	// user has pushed left button
@@ -136,7 +141,11 @@ void mouseHandle(int event, int x, int y, int flags, void* param) {
 	}
 }
 
-/* Prevent Point from leaving the frame */
+/**
+ * Prevents an opencv point from leaving the frame.
+ * @param point Point
+ * @param frame Image
+ */
 void safePoint(Point2d * point, Mat * frame) {
 	if (point->x < 0)
 		point->x = 0;
@@ -148,7 +157,19 @@ void safePoint(Point2d * point, Mat * frame) {
 		point->y = frame->rows - 1;
 }
 
-// Convert OpenCV Rect data to Yolo labels
+/**
+ * Converts OpenCV Rect data to Yolo labels.
+ * @param wFrame [description]
+ * @param hFrame [description]
+ * @param xtl    [description]
+ * @param ytl    [description]
+ * @param xbr    [description]
+ * @param ybr    [description]
+ * @param xObj   [description]
+ * @param yObj   [description]
+ * @param wObj   [description]
+ * @param hObj   [description]
+ */
 void convertToYOLOLabels(int wFrame, int hFrame, double xtl, double ytl,
 		double xbr, double ybr, double &xObj, double &yObj, double &wObj,
 		double &hObj) {
@@ -164,7 +185,19 @@ void convertToYOLOLabels(int wFrame, int hFrame, double xtl, double ytl,
 	hObj = hObj * dh;
 }
 
-// Convert YOLO Labels to OpenCV Rect data
+/**
+ * Converts YOLO Labels to OpenCV Rect data.
+ * @param xObj   [description]
+ * @param yObj   [description]
+ * @param wObj   [description]
+ * @param hObj   [description]
+ * @param wFrame [description]
+ * @param hFrame [description]
+ * @param xtl    [description]
+ * @param ytl    [description]
+ * @param xbr    [description]
+ * @param ybr    [description]
+ */
 void convertFromYOLOLabels(double xObj, double yObj, double wObj, double hObj,
 	int wFrame, int hFrame, double &xtl, double &ytl, double &xbr, double &ybr) {
 	double dw = 1.0 / (double) wFrame;
@@ -180,13 +213,18 @@ void convertFromYOLOLabels(double xObj, double yObj, double wObj, double hObj,
 	// printf("Errechnet: xtl:%f ytl:%f xbr:%f ybr:%f\n", xtl, ytl, xbr, ybr);
 }
 
-//Random Color
+/**
+ * Returns random color in opencv.
+ * @return color scalar
+ */
 CvScalar random_color() {
 	int color = rand();
 	return CV_RGB(color&255, (color>>8)&255, (color>>16)&255);
 }
 
-//Initialize nine objects for labeling
+/**
+ * Initialize nine objects for labeling.
+ */
 void init_ObjectRects(){
 	srand(time(0));
 	for (int i = 1; i <= 9; i++){
@@ -201,6 +239,9 @@ void init_ObjectRects(){
 	}
 }
 
+/**
+ * Clears labeled objects.
+ */
 void resetObjects() {
 	for (int i = 1; i <= 9; i++){
 		objects.at(i - 1).number = i;
@@ -213,7 +254,7 @@ void resetObjects() {
 
 /**
  * Draws rectangles of tagged objects into a given frame.
- *
+ * @param frame current image
  */
 void draw_ObjectRects(Mat& frame) {
 	for (vector<ObjectRect>::const_iterator it = objects.begin(); it != objects.end(); ++it) {
