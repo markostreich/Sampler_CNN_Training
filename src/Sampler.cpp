@@ -40,8 +40,7 @@ using namespace boost::iostreams;
 
 // debugging
 const bool safeToFiles = true;
-bool debug = false;
-bool YOLOLabels = true;
+const bool YOLOLabels = true;
 
 const int rect_linesize = 1;
 
@@ -358,7 +357,7 @@ void showCommandlineUsage() {
 	"\t-m (or --mode) <recordonly|labelonly|labelvideo|recordandlabel|reviselabels|fpstest|listdevices>\n" <<
 	"\t-s (or --source) <source: device number or video file>\n" <<
 	"\t-d (or --destination) <destination folder>" << "\n" <<
-	"\t-f (or --fps) <frames per second>" << "\n\n" <<
+	"\t-f (or --fps) <frames per second>" << "\n" <<
 	"\t-n (or --nextnumber) <image number to start labeling with in mode labelvideo>" << "\n\n" <<
 	"Defaults:" << "\n\n" <<
 	"sam_sampler" << " -m labelonly -s 0 -d Storage -f 60\n\n";
