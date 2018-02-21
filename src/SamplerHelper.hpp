@@ -21,7 +21,8 @@ enum SamplerModes {
   RECORD_AND_LABEL,
   FPS_TEST,
   LIST_DEVICES,
-  REVISE_LABELS
+  REVISE_LABELS,
+  SPLIT_SETS
 };
 
 std::string replaceString(std::string &s,
