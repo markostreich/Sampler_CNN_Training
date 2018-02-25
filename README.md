@@ -1,3 +1,6 @@
+Sampler für das Gewinnen von Trainingsdaten für das YOLO CNN im Darknet Framework.
+Eine Bedienungsanleitung ist im doc Ordner. Die möglichen Kommandozeilenargumente lassen sich mit ```sam_sampler -h``` anzeigen.
+
 # Workflow:
 
 * __Kompilieren__:
@@ -17,3 +20,5 @@
 
 2.  Da Include Pfade für jedes System Verschieden sind, werden hier nur die Standartpfade ```$INC``` verwendet.
     Sollten diese Pfade nicht Stimmen, kann ```$INC``` als [Umgebungsvariable](https://wiki.ubuntuusers.de/Umgebungsvariable/) überschrieben werden.
+
+3.  Das Projekt erfordert gcc/g++ 5.
