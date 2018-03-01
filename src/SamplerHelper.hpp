@@ -32,6 +32,16 @@ std::string replaceString(std::string &s,
     while (s.find(toReplace) != std::string::npos)
       s.replace(s.find(toReplace), toReplace.length(), replaceWith);
     return s;
+};
+
+bool readCameraParameters(std::string filename,
+		cv::Mat &camMatrix, cv::Mat &distCoeffs) {
+	cv::FileStorage fs(filename, cv::FileStorage::READ);
+	if (!fs.isOpened())
+		return false;
+	fs["camera_matrix"] >> camMatrix;
+	fs["distortion_coefficients"] >> distCoeffs;
+	return true;
 }
 
 #endif //_SAMPLER_HELPER_HPP_

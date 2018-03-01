@@ -31,6 +31,8 @@
 #include <streambuf>
 #include <string>
 
+static char INPUT_CAMERA_CALIB_FILE[] = "realsense_640x480_intrinsic_calib.yml";
+
 using namespace std;
 using namespace cv;
 using namespace boost::filesystem;
@@ -82,6 +84,9 @@ int fps;
 
 // Check if all labeled objects start tracking with a class and a direction
 bool classSetError = false;
+
+Mat camMatrix;
+Mat distCoeffs;
 
 /**
  * Handler of mouse events in the main window.
@@ -622,6 +627,7 @@ void createSubFolder(const string pathRGB, const string pathYOLOLabel) {
  * @return            error code
  */
 int recordVideo(VideoCapture &capture, string pathFolder, string &pathVideo) {
+  Mat distortFrame;
   Mat frame;
   Size size =
       Size((int)capture.get(CV_CAP_PROP_FRAME_WIDTH), // Acquire input size
@@ -629,7 +635,9 @@ int recordVideo(VideoCapture &capture, string pathFolder, string &pathVideo) {
   // loop before saving the video
   int key = 0;
   while (key != 32) {
-    capture.read(frame);
+    capture.read(distortFrame);
+    undistort(distortFrame, frame, camMatrix, distCoeffs);
+    // capture.read(frame);
     string text = "Press SPACE to start recording.";
     putText(frame, text, Point(10, 30), 1, 2, Scalar(0, 255, 255), 2);
     imshow(windowName, frame);
@@ -641,7 +649,9 @@ int recordVideo(VideoCapture &capture, string pathFolder, string &pathVideo) {
 
   int countDown = 50;
   while (countDown > 0) {
-    capture.read(frame);
+    capture.read(distortFrame);
+    undistort(distortFrame, frame, camMatrix, distCoeffs);
+    // capture.read(frame);
     const string countDownStr = boost::lexical_cast<string>(countDown / 10 + 1);
     putText(frame, countDownStr, Point(10, 30), 1, 2, Scalar(0, 0, 255), 2);
     imshow(windowName, frame);
@@ -955,6 +965,8 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  readCameraParameters(INPUT_CAMERA_CALIB_FILE, camMatrix, distCoeffs);
+
   if (mode == FPS_TEST) {
     calcFPS();
     return 0;
@@ -977,6 +989,7 @@ int main(int argc, char *argv[]) {
 
   Mat frame;
   Mat blankFrame;
+  Mat distortFrame;
   // image counter
   int image_counter = start_number;
 
@@ -1052,7 +1065,8 @@ int main(int argc, char *argv[]) {
   while (1) {
     while (!startTracking) {
       if (doCapturing) {
-        capture.read(blankFrame);
+        capture.read(distortFrame);
+        undistort(distortFrame, blankFrame, camMatrix, distCoeffs);
       }
       frame = blankFrame.clone();
       draw_ObjectRects(frame);
@@ -1085,12 +1099,12 @@ int main(int argc, char *argv[]) {
     init_tracker(blankFrame);
     key = -1;
     while (32 != key) {
-      if (!capture.read(blankFrame)) {
+      if (!capture.read(distortFrame)) {
         cout << "Finished Labeling.\n";
         return 0;
       }
+      undistort(distortFrame, blankFrame, camMatrix, distCoeffs);
       frame = blankFrame.clone();
-
       tracker->update(frame);
 
       // save image file
