@@ -923,7 +923,6 @@ void createSubSets(string p) {
 		printf("No such directory!\n");
 		return;
 	}
-  Mat image;
   const path pathRGB(p + "/RGB");
   const path pathYOLO(p + "/YOLO_Labels");
   int cntFiles =
