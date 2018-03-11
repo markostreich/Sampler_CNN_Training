@@ -32,7 +32,7 @@ std::string replaceString(std::string &s,
     while (s.find(toReplace) != std::string::npos)
       s.replace(s.find(toReplace), toReplace.length(), replaceWith);
     return s;
-};
+}
 
 bool readCameraParameters(std::string filename,
 		cv::Mat &camMatrix, cv::Mat &distCoeffs) {
