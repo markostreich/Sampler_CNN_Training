@@ -30,6 +30,9 @@
 #include <stdio.h>
 #include <streambuf>
 #include <string>
+#include <sstream>
+#include <iterator>
+#include <vector>
 
 static char INPUT_CAMERA_CALIB_FILE[] = "realsense_640x480_intrinsic_calib.yml";
 
@@ -39,6 +42,9 @@ using namespace boost::filesystem;
 using namespace boost::assign;
 using namespace boost::sort::spreadsort;
 using namespace boost::iostreams;
+
+//indicates if the current rect is being classified or not
+bool runningClassification = true;
 
 // debugging
 const bool safeToFiles = true;
@@ -271,8 +277,17 @@ void draw_ObjectRects(Mat &frame) {
     if ((*it).active) {
       if ((*it).selected) {
         rectangle(frame, (*it).rect, (*it).color, 2, 1);
-        const string str = (*it).classification + " " + (*it).direction;
-        putText(frame, str, Point(100, 30), 1, 2, (*it).color, 2);
+        if(runningClassification)
+        {
+          const string str = ">" + (*it).classification + " --  " + (*it).direction;
+          putText(frame, str, Point(100, 30), 1, 2, (*it).color, 2);
+        }
+        else{
+          const string str = " " + (*it).classification + " -- >" + (*it).direction;
+          putText(frame, str, Point(100, 30), 1, 2, (*it).color, 2);
+        }
+
+
       } else {
         rectangle(frame, (*it).rect, (*it).color, rect_linesize, 1);
       }
@@ -302,29 +317,207 @@ bool all_classes_set() {
   return true;
 }
 
+
+typedef struct {
+	int currentDir;
+	std::string name;
+	std::string *directions;
+	int dirCount;
+}tClass;
+
+typedef struct {
+	tClass** classes;
+	int currentClass = 0;
+	int maxClasses = 1;
+}selection;
+
+selection CurrentSelection;
+
+void readConfigFiles()
+{
+	ifstream file("config/classification.config");
+	string line;
+	size_t found = 0;
+	bool isClass = false;
+	bool isDir = false;
+
+	if (file) {
+
+		vector<tClass*> createdClassses;
+		vector<std::string> currentClasses;
+
+		while (getline(file, line))
+		{
+
+			if (isClass)
+			{
+				cout << "Class read: " << line << '\n';
+
+				string::iterator it = line.begin();
+
+				string current = "";
+
+				for (it; it < line.end(); ++it)
+				{
+					if (*it == ' ')
+					{
+						currentClasses.push_back(current);
+						current = "";
+					}
+					else
+					{
+						current += *it;
+					}
+
+				}
+
+				currentClasses.push_back(current);
+
+				isClass = false;
+			}
+			else if (isDir)
+			{
+				cout << "Direction read: " << line << '\n';
+
+				string::iterator it = line.begin();
+
+				string current = "";
+
+				vector<std::string> currentDir;
+
+				for (it; it < line.end(); ++it)
+				{
+					if (*it == ' ')
+					{
+						currentDir.push_back(current);
+						current = "";
+					}
+					else
+					{
+						current += *it;
+					}
+
+				}
+
+				currentDir.push_back(current);
+
+				string* directionsMalloc = (string*)malloc(sizeof(string) * currentDir.size());
+
+				for (int i = 0; i < currentDir.size(); ++i)
+				{
+					new (directionsMalloc + i) string(currentDir[i]); // Ruft den constructor auf dem speicher auf der vom malloc kam.
+				}
+
+				for (int i = 0; i < currentClasses.size(); ++i)
+				{
+					tClass *current = (tClass*)malloc(sizeof(tClass));
+					current->currentDir = 0;
+					current->directions = directionsMalloc;
+					current->dirCount = currentDir.size();
+					new (&current->name) string(currentClasses[i]);
+
+					createdClassses.push_back(current);
+				}
+        currentClasses.clear();
+
+				isDir = false;
+			}
+			found = line.find("<class>");
+			if (found != string::npos) {
+				isClass = true;
+			}
+			found = line.find("<dir>");
+			if (found != string::npos) {
+				isDir = true;
+			}
+		}
+
+		CurrentSelection.currentClass = 0;
+		CurrentSelection.maxClasses = createdClassses.size();
+		tClass** firstCreated = (tClass**)malloc(sizeof(tClass*)*createdClassses.size());
+		for (int i = 0; i < createdClassses.size(); ++i)
+		{
+			firstCreated[i] = createdClassses[i];
+		}
+		CurrentSelection.classes = firstCreated;
+	}
+}
+
+
+
+
+#define ArrowUp 82
+#define ArrowDown 84
+#define ArrowLeft 81
+#define ArrowRight 83
+
+void toggleClassification(int key)
+{
+
+  if(runningClassification)
+  {
+    tClass current = *CurrentSelection.classes[CurrentSelection.currentClass];
+
+    objects.at(selectedRect - 1).classification.assign(current.name);
+
+    objects.at(selectedRect - 1).direction.assign(current.directions[current.currentDir]);
+
+    if(key == ArrowRight)
+    {
+      runningClassification = false;
+    }
+    else if(key == ArrowUp)
+    {
+      CurrentSelection.currentClass = (CurrentSelection.currentClass + CurrentSelection.maxClasses - 1) % CurrentSelection.maxClasses;
+    }
+    else if(key == ArrowDown)
+    {
+      CurrentSelection.currentClass = (CurrentSelection.currentClass + 1) % CurrentSelection.maxClasses;
+    }
+  }
+}
+
+void toggleDirection(int key)
+{
+  if(!runningClassification)
+  {
+    tClass current = *CurrentSelection.classes[CurrentSelection.currentClass];
+    objects.at(selectedRect - 1).direction.assign(current.directions[current.currentDir]);
+
+    if(key == ArrowLeft)
+    {
+      runningClassification = true;
+
+    }
+    else if(key == ArrowUp)
+    {
+      CurrentSelection.classes[CurrentSelection.currentClass] -> currentDir = (current.currentDir + current.dirCount - 1) % current.dirCount;
+    }
+    else if(key == ArrowDown)
+    {
+      CurrentSelection.classes[CurrentSelection.currentClass] -> currentDir = (current.currentDir + 1) % current.dirCount;
+    }
+  }
+}
+
 /**
  * Key handle in running label prcess.
  * @param key Last key pressed.
  */
 void key_handle(int key) {
+  if(runningClassification)
+  {
+    toggleClassification(key);
+  }
+  else
+  {
+    toggleDirection(key);
+  }
+
   if (key >= 49 && key <= 57) {
     objects.at(selectedRect - 1).selected = false;
     selectedRect = key - 48;
     objects.at(selectedRect - 1).selected = true;
-  } else if (key == 'c') {
-    objects.at(selectedRect - 1).classification = "car";
-  } else if (key == 'p') {
-    objects.at(selectedRect - 1).classification = "person";
-  } else if (key == 'h') {
-    objects.at(selectedRect - 1).classification = "child";
-  } else if (key == 82) {
-    objects.at(selectedRect - 1).direction = "forward";
-  } else if (key == 83) {
-    objects.at(selectedRect - 1).direction = "right";
-  } else if (key == 84) {
-    objects.at(selectedRect - 1).direction = "backward";
-  } else if (key == 81) {
-    objects.at(selectedRect - 1).direction = "left";
   } else if (key == 'w') {
     Point2d tl = objects.at(selectedRect - 1).rect.tl();
     Point2d br = objects.at(selectedRect - 1).rect.br();
@@ -366,6 +559,7 @@ void key_handle(int key) {
     br = Point2d(br.x + 1.0, br.y);
     objects.at(selectedRect - 1).rect = Rect2d(tl, br);
   }
+
 }
 
 /**
@@ -859,7 +1053,7 @@ void reviseLabels(const string p) {
   namedWindow(windowName);
   setMouseCallback(windowName, mouseHandle, &image);
   init_ObjectRects();
-
+  readConfigFiles();
   while (true) {
     resetObjects();
     image = imread(files[fileIndex], CV_LOAD_IMAGE_COLOR);
@@ -1061,6 +1255,7 @@ int main(int argc, char *argv[]) {
       capture.read(blankFrame);
     }
   }
+  readConfigFiles();
   while (1) {
     while (!startTracking) {
       if (doCapturing) {
